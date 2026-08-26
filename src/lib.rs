@@ -118,9 +118,13 @@ fn lock_recover<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// `ulid(seedTime)` parity).
 #[napi]
 pub fn ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
-    let ts = match explicit_ts(timestamp_ms)? {
+    // No-arg fast path: skip Option plumbing entirely.
+    let ts = match timestamp_ms {
         None => core::now_ms(),
-        Some(t) => t,
+        Some(_) => match explicit_ts(timestamp_ms)? {
+            None => core::now_ms(),
+            Some(t) => t,
+        },
     };
     if ts > core::TIME_MAX {
         return Err(Error::new(
