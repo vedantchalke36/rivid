@@ -31,7 +31,7 @@ ulid(); // "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 Rivid generates the same ULIDs you already know — unique, lexicographically sortable, canonically encoded as a 26-character Crockford Base32 string — but moves string allocation, Base32 encoding, and randomness into a native Rust engine:
 
-- **~276× faster** than `ulid` npm for single IDs — *measured*, not estimated
+- **~310× faster than `ulid` npm for single IDs — *measured*, not estimated
 - **~2,000× faster** for bulk generation — 1 M IDs in **16 ms** instead of 40 seconds
 - **Zero setup** — prebuilt binaries for 6 platforms via npm; no Rust toolchain required
 - **Drop-in compatible** — same alphabet, same `isValid` / `encodeTime` / `decodeTime` vectors, same `seedTime` semantics
@@ -45,7 +45,7 @@ Pure-JS ULID libraries spend most of their time in string allocation, Base32 cod
 | | `ulid` (JS) | `rivid` |
 |---|---|---|
 | 1 M IDs | **40 s** | **0.28 s** (`generateMany`) · **0.02 s** (`generateBytes`) |
-| Single call | 38 µs | **140 ns** |
+| Single call | 38 µs | **126 ns** |
 | Randomness | crypto.randomBytes per ID | ChaCha12 batch fills, one syscall-class fill per batch |
 
 *(Full methodology below — every number is reproducible with one command.)*
@@ -205,7 +205,7 @@ Reproduce yourself: `npm run bench` (results persist to `benchmarks/results/late
 ### Single ID generation
 
 ```
-@rivid/core ulid()            x 7,200,000 ops/sec   (140 ns · p99 208 ns)
+@rivid/core ulid()            x 7,900,000 ops/sec   (126 ns · p50 117 ns)
 @rivid/core monotonicUlid()   x 7,000,000 ops/sec   (144 ns · p99 184 ns)
 @rivid/core uuidv7()          x 5,800,000 ops/sec   (171 ns · p99 292 ns)
 ulidx monotonicFactory()      x 2,200,000 ops/sec   (460 ns/op)
@@ -213,7 +213,7 @@ js-baseline (Math.random)     x 1,500,000 ops/sec   (660 ns/op)
 ulid (npm)                    x    26,000 ops/sec   (38,300 ns/op)
 ```
 
-> **276× the reference implementation** on identical hardware — and the baseline isn't even slow by JS standards.
+> **310× the reference implementation** on identical hardware — and the baseline isn't even slow by JS standards.
 
 ### Bulk generation
 
@@ -232,7 +232,7 @@ We instrumented the whole stack, so you don't have to guess:
 
 | Path | Cost |
 |---|---:|
-| Pure Rust engine (direct) | 51 ns |
+| Pure Rust engine (direct) | ~40 ns |
 | + NAPI boundary round-trip | 24 ns |
 | + JS string materialization | ≈ 140 ns total |
 | PostgreSQL INSERT round trip | ≈ 1,184 µs |

@@ -18,6 +18,30 @@ use napi_derive::napi;
 
 use rivid_core as core;
 
+use napi::{Env, JsString, NapiRaw, NapiValue};
+
+/// Encodes `value` into a fresh JS string without any intermediate heap
+/// allocation on the Rust side: 26 bytes are Crockford-encoded onto the
+/// stack and handed to V8 as a one-byte (Latin1) string.
+///
+/// SAFETY contract of the call site: `buf` must live until the N-API call
+/// returns (it does — V8 copies synchronously).
+#[inline]
+fn js_string_latin1_26(env: Env, buf: &[u8; 26]) -> Result<JsString> {
+    unsafe {
+        let mut js: napi::sys::napi_value = std::ptr::null_mut();
+        napi::check_status!(
+            napi::sys::napi_create_string_latin1(env.raw(), buf.as_ptr().cast(), 26, &mut js)
+        )?;
+        Ok(JsString::from_raw(env.raw(), js)?)
+    }
+}
+
+#[inline]
+fn encode_stack(ts: u64, random: u128) -> [u8; 26] {
+    core::crockford::encode_value(core::Id128::from_parts(ts, random).as_u128())
+}
+
 // ---------------------------------------------------------------------------
 // Error conversion
 // ---------------------------------------------------------------------------
@@ -93,11 +117,19 @@ fn lock_recover<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// An optional explicit millisecond timestamp may be passed (reference
 /// `ulid(seedTime)` parity).
 #[napi]
-pub fn ulid(timestamp_ms: Option<f64>) -> Result<String> {
-    match explicit_ts(timestamp_ms)? {
-        None => Ok(core::ulid::generate()),
-        Some(t) => core::ulid::generate_at(t).napi(),
+pub fn ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
+    let ts = match explicit_ts(timestamp_ms)? {
+        None => core::now_ms(),
+        Some(t) => t,
+    };
+    if ts > core::TIME_MAX {
+        return Err(Error::new(
+            Status::InvalidArg,
+            format!("timestamp {ts} exceeds ULID max {}", core::TIME_MAX),
+        ));
     }
+    let buf = encode_stack(ts, core::rng::random_80());
+    js_string_latin1_26(env, &buf)
 }
 
 /// Generate a monotonic ULID: strictly increasing across successive calls
@@ -106,17 +138,21 @@ pub fn ulid(timestamp_ms: Option<f64>) -> Result<String> {
 /// State is process-global and thread-safe; for maximum throughput in
 /// multi-threaded pipelines prefer per-thread `UlidGenerator` instances.
 #[napi]
-pub fn monotonic_ulid(timestamp_ms: Option<f64>) -> Result<String> {
+pub fn monotonic_ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
     static STATE: OnceLock<Mutex<core::monotonic::MonotonicState>> = OnceLock::new();
     let state = STATE.get_or_init(|| Mutex::new(core::monotonic::MonotonicState::new()));
     let mut guard = match state.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
     };
-    Ok(match explicit_ts(timestamp_ms)? {
+    let value = match explicit_ts(timestamp_ms)? {
         Some(t) => guard.next_secure_at(t),
         None => guard.next_secure(),
-    })
+    };
+    // Monotonic output is already canonical; reuse the zero-alloc encoder.
+    let mut buf = [0u8; 26];
+    buf.copy_from_slice(value.as_bytes());
+    js_string_latin1_26(env, &buf)
 }
 
 /// Generate `count` ULID strings in one call.

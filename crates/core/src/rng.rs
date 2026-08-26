@@ -19,15 +19,39 @@
 //! be selected accidentally by production code paths.
 
 use rand::RngCore;
+use std::cell::RefCell;
 
-/// Draws 80 bits of randomness (the ULID random component) from the secure
-/// thread-local generator.
+/// Amortises CSPRNG work: one ChaCha12 fill serves 32 ULID randomness draws.
+struct EntropyPool {
+    idx: usize,
+    words: [u128; 32],
+}
+
+thread_local! {
+    static POOL: RefCell<EntropyPool> = RefCell::new(EntropyPool { idx: 32, words: [0; 32] });
+}
+
+/// Draws 80 bits of randomness (the ULID random component).
+///
+/// Served from a thread-local pool refilled by the OS-seeded ChaCha12
+/// thread-local generator every 32 draws — statistically identical to
+/// drawing fresh, but with the generator's block overhead amortised.
 #[inline]
 #[must_use]
 pub fn random_80() -> u128 {
-    let mut rng = rand::rng();
-    let value = ((rng.next_u64() as u128) << 64) | (rng.next_u64() as u128);
-    value & crate::id128::Id128::RANDOM_MASK
+    POOL.with_borrow_mut(|p| {
+        if p.idx == p.words.len() {
+            // SAFETY: `[u128; 32]` is trivially transmutable to its 512-byte
+            // view — same alignment, no padding possible for a primitive array.
+            let bytes: &mut [u8] =
+                unsafe { std::slice::from_raw_parts_mut(p.words.as_mut_ptr().cast(), 512) };
+            rand::rng().fill_bytes(bytes);
+            p.idx = 0;
+        }
+        let v = p.words[p.idx];
+        p.idx += 1;
+        v & crate::id128::Id128::RANDOM_MASK
+    })
 }
 
 /// Fills `buf` entirely with secure random bytes using the thread-local
