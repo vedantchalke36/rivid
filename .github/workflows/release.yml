@@ -214,6 +214,48 @@ jobs:
   # Installs the ACTUAL published package through three package managers and
   # loads both module systems — catches broken optionalDependencies wiring,
   # wrong libc/cpu gates and loader regressions users would hit.
+  # Builds the browser engine and publishes @rivid/wasm alongside the NAPI stack.
+  wasm:
+    name: Build + publish @rivid/wasm
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/wasm
+      - uses: taiki-e/install-action@wasm-pack
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install
+      - name: Build wasm targets
+        run: |
+          wasm-pack build crates/wasm --target web --out-dir pkg-web --release
+          wasm-pack build crates/wasm --target nodejs --out-dir pkg --release
+      - name: Reference-vector suite (nodejs target)
+        run: node crates/wasm/test.mjs
+      - name: Package @rivid/wasm
+        run: node scripts/package-wasm.mjs
+      - name: Tarball gate
+        run: |
+          cd crates/wasm/npm
+          npm pack --dry-run >/dev/null
+          test -f web/rivid_wasm_bg.wasm && test -f nodejs/rivid_wasm_bg.wasm
+      - name: Publish
+        if: github.event_name == 'push' || inputs.dry_run == false
+        run: npm publish --access public
+        working-directory: crates/wasm/npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Dry-run notice
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        run: echo "dry-run — @rivid/wasm assembled at crates/wasm/npm, not published"
+
   verify:
     name: Verify published (${{ matrix.pm }} / ${{ matrix.os }})
     needs: [publish]

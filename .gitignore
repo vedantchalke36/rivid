@@ -17,6 +17,7 @@ x86_64-*/
 crates/wasm/pkg/
 crates/wasm/pkg-web/
 crates/wasm/pkg-bundler/
+crates/wasm/npm/
 
 # Benchmark results (per-machine, not committed)
 benchmarks/results/*.json
