@@ -1,0 +1,31 @@
+plugins {
+    id("java")
+}
+
+// Versions pinned per BENCHMARK_METHODOLOGY.md §4. Update deliberately.
+repositories { mavenCentral() }
+
+dependencies {
+    implementation("com.github.f4b6a3:ulid-creator:5.2.3")
+    implementation("com.fasterxml.uuid:java-uuid-generator:5.0.0")
+    implementation("org.openjdk.jmh:jmh-core:1.37")
+    annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+}
+
+java {
+    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
+}
+
+tasks.register("jmhCompile", JavaCompile) {
+    source = fileTree("src/main/java")
+    destinationDirectory.set(layout.buildDirectory.dir("jmh"))
+}
+
+// ./gradlew benchmark  →  JMH with documented warmup (never nanoTime loops)
+tasks.register("benchmark", JavaExec) {
+    group = "benchmark"
+    description = "Runs the JMH identifier benchmark suite"
+    mainClass.set("org.openjdk.jmh.Main")
+    classpath = sourceSets["main"].runtimeClasspath
+    jvmArgs("-Xms1g", "-Xmx1g") // recorded in results metadata
+}

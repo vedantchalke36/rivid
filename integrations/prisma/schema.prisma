@@ -1,0 +1,30 @@
+// Prisma schema: Rivid ULID/UUIDv7 primary keys on PostgreSQL.
+// Generation modes tested (see ORM plan §5):
+//   A  application-generated — client sets id via @rivid/core before create
+//   C  database-generated    — gen_random_uuid() server default (v4 baseline)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model UserUlid {
+  id        String   @id @db.Char(26) // Rivid ULID, set by the application
+  email     String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users_pisma_ulid")
+}
+
+model UserUuidV4Db {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email     String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users_prisma_v4db")
+}

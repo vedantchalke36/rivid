@@ -1,0 +1,23 @@
+[project]
+name = "rivid-bench-python"
+version = "0.1.0"
+description = "Cross-language identifier benchmark - Python suite"
+requires-python = ">=3.11"
+
+# Pinned mature references (exact versions recorded in every result).
+# NOTE: python-ulid and ulid-py BOTH install the `ulid` import name and
+# therefore cannot coexist in one environment. Default matrix benchmarks
+# python-ulid; pass --extra ulidpy (uv) / pip install ulid-py to swap.
+dependencies = [
+  "python-ulid==2.7.0",
+  "uuid-utils==0.10.0",
+]
+
+[project.optional-dependencies]
+ulidpy = ["ulid-py==1.1.0"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = []

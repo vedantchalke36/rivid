@@ -1,0 +1,18 @@
+[package]
+name = "rivid-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.73"
+license = "MIT"
+description = "Rust ID engine powering rivid: ULID, UUIDv7, Crockford Base32, Base58, Base64URL and batch generation"
+repository = "https://github.com/vedantchalke36/rivid"
+readme = false
+keywords = ["ulid", "uuid", "uuidv7", "identifier", "base32", "sortable"]
+categories = ["algorithms", "encoding", "development-tools"]
+
+[dependencies]
+# Thread-local ChaCha12 CSPRNG (`rand::rng()`), seeded/reseeded from OS entropy.
+rand = { version = "0.9", features = ["std_rng"] }
+
+[[example]]
+name = "bench_direct"

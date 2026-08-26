@@ -1,0 +1,44 @@
+{
+  "$schema": "./schema/workloads.schema.json",
+  "version": 1,
+  "categories": {
+    "A_single_string": "one ID per call, returned as language-native string",
+    "B_bulk_string": "N IDs per call, strings",
+    "C_single_binary": "one ID per call, raw 16 bytes",
+    "D_bulk_binary": "N IDs per call, packed 16-byte records",
+    "E_prealloc": "caller-owned output buffer, filled in place",
+    "F_codec": "encode/decode/validate/compare/time-extract on existing IDs"
+  },
+  "workloads": [
+    { "id": "gen.single.ulid",            "category": "A", "identifier": "ulid",    "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
+    { "id": "gen.single.ulid-mono",       "category": "A", "identifier": "ulid-monotonic", "op": "generate", "mode": "string", "count": 1, "target_ms": 400 },
+    { "id": "gen.single.uuidv4",          "category": "A", "identifier": "uuidv4",  "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
+    { "id": "gen.single.uuidv7",          "category": "A", "identifier": "uuidv7",  "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
+    { "id": "gen.bulk.ulid.1k",           "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 1000,   "reps": 5 },
+    { "id": "gen.bulk.ulid.10k",          "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 10000,  "reps": 5 },
+    { "id": "gen.bulk.ulid.100k",         "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 100000, "reps": 3 },
+    { "id": "gen.bulk.ulid.1m",           "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 1000000,"reps": 3 },
+    { "id": "gen.bulk.ulid.10m",          "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 10000000,"reps": 1, "quick_skip": true },
+    { "id": "gen.bulk.uuidv7.1m",         "category": "B", "identifier": "uuidv7",  "op": "generate_bulk", "mode": "string", "count": 1000000,"reps": 3 },
+    { "id": "gen.binary.ulid.single",     "category": "C", "identifier": "ulid",    "op": "generate", "mode": "binary16", "count": 1, "target_ms": 400 },
+    { "id": "gen.binary.ulid.bulk.1m",    "category": "D", "identifier": "ulid",    "op": "generate_bulk", "mode": "binary16", "count": 1000000, "reps": 3 },
+    { "id": "gen.prealloc.ulid.1m",       "category": "E", "identifier": "ulid",    "op": "generate_into", "mode": "binary16", "count": 1000000, "reps": 3,
+      "note": "only where the library exposes caller-buffer APIs; absent elsewhere — absence is reported as 'n/a', never as a loss" },
+    { "id": "codec.encode.ulid.16b",      "category": "F", "identifier": "ulid",    "op": "encode",   "count": 1, "target_ms": 300 },
+    { "id": "codec.decode.ulid.26c",      "category": "F", "identifier": "ulid",    "op": "decode",   "count": 1, "target_ms": 300 },
+    { "id": "codec.validate.ulid",        "category": "F", "identifier": "ulid",    "op": "validate", "count": 1, "target_ms": 300 },
+    { "id": "codec.compare.ulid",         "category": "F", "identifier": "ulid",    "op": "compare",  "count": 1, "target_ms": 300 },
+    { "id": "codec.timeextract.ulid",     "category": "F", "identifier": "ulid",    "op": "time_extract", "count": 1, "target_ms": 300 },
+    { "id": "codec.timeextract.uuidv7",   "category": "F", "identifier": "uuidv7",  "op": "time_extract", "count": 1, "target_ms": 300 },
+    { "id": "sort.ulid.10k",              "category": "F", "identifier": "ulid",    "op": "sort", "count": 10000, "reps": 20 },
+    { "id": "noop.framework",             "category": "A", "identifier": null,      "op": "noop", "target_ms": 200,
+      "note": "framework noise baseline — mandatory in every suite; used to flag statistically indistinguishable results" }
+  ],
+  "scaling_curve": { "sizes": [1000, 10000, 100000, 1000000, 10000000], "optional_100m_note": "run manually on machines with >=32GB RAM; string workloads at 100M exceed typical CI memory" },
+  "rules": {
+    "warmup_required_ms": 250,
+    "same_logical_workload_everywhere": true,
+    "report_absence_as_na": true,
+    "security_label_required": true
+  }
+}

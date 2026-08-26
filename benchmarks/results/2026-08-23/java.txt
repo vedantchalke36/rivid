@@ -1,0 +1,188 @@
+> Task :compileJava UP-TO-DATE
+> Task :processResources NO-SOURCE
+> Task :classes UP-TO-DATE
+
+> Task :benchmark
+# JMH version: 1.37
+# VM version: JDK 21.0.12.1, OpenJDK 64-Bit Server VM, 21.0.12.1+1-1-deb13u1-Debian
+# VM invoker: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: dev.fastid.bench.IdBench.timeExtract_ulid
+
+# Run progress: 0.00% complete, ETA 00:00:50
+# Fork: 1 of 1
+# Warmup Iteration   1: 111.236 ns/op
+# Warmup Iteration   2: 86.951 ns/op
+# Warmup Iteration   3: 67.433 ns/op
+# Warmup Iteration   4: 63.038 ns/op
+# Warmup Iteration   5: 61.441 ns/op
+Iteration   1: 63.472 ns/op
+Iteration   2: 61.622 ns/op
+Iteration   3: 59.927 ns/op
+Iteration   4: 61.088 ns/op
+Iteration   5: 60.649 ns/op
+
+
+Result "dev.fastid.bench.IdBench.timeExtract_ulid":
+  61.351 ±(99.9%) 5.152 ns/op [Average]
+  (min, avg, max) = (59.927, 61.351, 63.472), stdev = 1.338
+  CI (99.9%): [56.199, 66.503] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.12.1, OpenJDK 64-Bit Server VM, 21.0.12.1+1-1-deb13u1-Debian
+# VM invoker: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: dev.fastid.bench.IdBench.ulid_monotonic_ulidCreator
+
+# Run progress: 20.00% complete, ETA 00:00:42
+# Fork: 1 of 1
+# Warmup Iteration   1: 177.183 ns/op
+# Warmup Iteration   2: 112.848 ns/op
+# Warmup Iteration   3: 106.134 ns/op
+# Warmup Iteration   4: 115.969 ns/op
+# Warmup Iteration   5: 102.558 ns/op
+Iteration   1: 100.281 ns/op
+Iteration   2: 115.499 ns/op
+Iteration   3: 106.708 ns/op
+Iteration   4: 117.398 ns/op
+Iteration   5: 109.021 ns/op
+
+
+Result "dev.fastid.bench.IdBench.ulid_monotonic_ulidCreator":
+  109.781 ±(99.9%) 26.609 ns/op [Average]
+  (min, avg, max) = (100.281, 109.781, 117.398), stdev = 6.910
+  CI (99.9%): [83.173, 136.390] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.12.1, OpenJDK 64-Bit Server VM, 21.0.12.1+1-1-deb13u1-Debian
+# VM invoker: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: dev.fastid.bench.IdBench.ulid_ulidCreator
+
+# Run progress: 40.00% complete, ETA 00:00:31
+# Fork: 1 of 1
+# Warmup Iteration   1: 716.954 ns/op
+# Warmup Iteration   2: 596.971 ns/op
+# Warmup Iteration   3: 538.057 ns/op
+# Warmup Iteration   4: 549.092 ns/op
+# Warmup Iteration   5: 549.038 ns/op
+Iteration   1: 579.805 ns/op
+Iteration   2: 582.189 ns/op
+Iteration   3: 577.320 ns/op
+Iteration   4: 555.288 ns/op
+Iteration   5: 541.997 ns/op
+
+
+Result "dev.fastid.bench.IdBench.ulid_ulidCreator":
+  567.320 ±(99.9%) 68.422 ns/op [Average]
+  (min, avg, max) = (541.997, 567.320, 582.189), stdev = 17.769
+  CI (99.9%): [498.897, 635.742] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.12.1, OpenJDK 64-Bit Server VM, 21.0.12.1+1-1-deb13u1-Debian
+# VM invoker: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: dev.fastid.bench.IdBench.uuidv4_jug
+
+# Run progress: 60.00% complete, ETA 00:00:20
+# Fork: 1 of 1
+# Warmup Iteration   1: 623.571 ns/op
+# Warmup Iteration   2: 565.051 ns/op
+# Warmup Iteration   3: 513.428 ns/op
+# Warmup Iteration   4: 501.852 ns/op
+# Warmup Iteration   5: 569.274 ns/op
+Iteration   1: 537.183 ns/op
+Iteration   2: 509.672 ns/op
+Iteration   3: 490.790 ns/op
+Iteration   4: 501.845 ns/op
+Iteration   5: 624.559 ns/op
+
+
+Result "dev.fastid.bench.IdBench.uuidv4_jug":
+  532.810 ±(99.9%) 208.226 ns/op [Average]
+  (min, avg, max) = (490.790, 532.810, 624.559), stdev = 54.076
+  CI (99.9%): [324.584, 741.036] (assumes normal distribution)
+
+
+# JMH version: 1.37
+# VM version: JDK 21.0.12.1, OpenJDK 64-Bit Server VM, 21.0.12.1+1-1-deb13u1-Debian
+# VM invoker: /usr/lib/jvm/java-21-openjdk-amd64/bin/java
+# VM options: -Xms1g -Xmx1g
+# Blackhole mode: compiler (auto-detected, use -Djmh.blackhole.autoDetect=false to disable)
+# Warmup: 5 iterations, 1 s each
+# Measurement: 5 iterations, 1 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Average time, time/op
+# Benchmark: dev.fastid.bench.IdBench.uuidv7_jug
+
+# Run progress: 80.00% complete, ETA 00:00:10
+# Fork: 1 of 1
+# Warmup Iteration   1: 747.542 ns/op
+# Warmup Iteration   2: 687.450 ns/op
+# Warmup Iteration   3: 581.555 ns/op
+# Warmup Iteration   4: 636.607 ns/op
+# Warmup Iteration   5: 608.289 ns/op
+Iteration   1: 665.972 ns/op
+Iteration   2: 816.276 ns/op
+Iteration   3: 659.160 ns/op
+Iteration   4: 670.662 ns/op
+Iteration   5: 645.028 ns/op
+
+
+Result "dev.fastid.bench.IdBench.uuidv7_jug":
+  691.420 ±(99.9%) 271.330 ns/op [Average]
+  (min, avg, max) = (645.028, 691.420, 816.276), stdev = 70.464
+  CI (99.9%): [420.089, 962.750] (assumes normal distribution)
+
+
+# Run complete. Total time: 00:00:52
+
+REMEMBER: The numbers below are just data. To gain reusable insights, you need to follow up on
+why the numbers are the way they are. Use profilers (see -prof, -lprof), design factorial
+experiments, perform baseline and negative tests that provide experimental control, make sure
+the benchmarking environment is safe on JVM/OS/HW level, ask for reviews from the domain experts.
+Do not assume the numbers tell you what you want them to tell.
+
+NOTE: Current JVM experimentally supports Compiler Blackholes, and they are in use. Please exercise
+extra caution when trusting the results, look into the generated code to check the benchmark still
+works, and factor in a small probability of new VM bugs. Additionally, while comparisons between
+different JVMs are already problematic, the performance difference caused by different Blackhole
+modes can be very significant. Please make sure you use the consistent Blackhole mode for comparisons.
+
+Benchmark                           Mode  Cnt    Score     Error  Units
+IdBench.timeExtract_ulid            avgt    5   61.351 ±   5.152  ns/op
+IdBench.ulid_monotonic_ulidCreator  avgt    5  109.781 ±  26.609  ns/op
+IdBench.ulid_ulidCreator            avgt    5  567.320 ±  68.422  ns/op
+IdBench.uuidv4_jug                  avgt    5  532.810 ± 208.226  ns/op
+IdBench.uuidv7_jug                  avgt    5  691.420 ± 271.330  ns/op
+
+BUILD SUCCESSFUL in 53s
+2 actionable tasks: 1 executed, 1 up-to-date

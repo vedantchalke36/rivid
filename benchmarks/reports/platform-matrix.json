@@ -1,0 +1,18 @@
+{
+ "date": "2026-08-23",
+ "commit": "no-git",
+ "os": "linux x64",
+ "kernel": "6.12.101+deb13-amd64",
+ "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
+ "cores_logical": 8,
+ "memory_gb": 15,
+ "runtimes": {
+  "node": "v24.19.0",
+  "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "python": "Python 3.13.5",
+  "go": "go version go1.24.5 linux/amd64",
+  "java": "21.0.12.1 (javac 21.0.12.1)"
+ },
+ "quick": false,
+ "failures": []
+}

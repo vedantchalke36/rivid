@@ -1,0 +1,18 @@
+[package]
+name = "rivid-integration-sqlx"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Standalone: excluded from the root NAPI workspace to keep its dependency
+# graph (sqlx/tokio) out of the published crate lockfile.
+[workspace]
+
+[dependencies]
+rivid-core = { path = "../../crates/core" }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"

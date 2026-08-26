@@ -1,0 +1,70 @@
+{
+  "$schema": "./schema/identifiers.schema.json",
+  "version": 1,
+  "identifiers": {
+    "ulid": {
+      "format": "ulid",
+      "length_chars": 26,
+      "length_bytes": 16,
+      "timestamp_bits": 48,
+      "randomness_bits": 80,
+      "sortable": true,
+      "monotonic_variant": "ulid-monotonic",
+      "security": "csp_rng",
+      "spec": "https://github.com/ulid/spec"
+    },
+    "ulid-monotonic": {
+      "extends": "ulid",
+      "monotonic": true,
+      "note": "same-ms calls increment prior random part; strictly increasing per generator"
+    },
+    "uuidv4": {
+      "format": "uuidv4",
+      "length_chars": 36,
+      "length_bytes": 16,
+      "timestamp_bits": 0,
+      "randomness_bits": 122,
+      "sortable": false,
+      "security": "csp_rng",
+      "spec": "RFC 9562 §5.4"
+    },
+    "uuidv7": {
+      "format": "uuidv7",
+      "length_chars": 36,
+      "length_bytes": 16,
+      "timestamp_bits": 48,
+      "randomness_bits": 74,
+      "sortable": true,
+      "monotonic_variant": null,
+      "security": "csp_rng",
+      "spec": "RFC 9562 §5.7"
+    },
+    "ksuid": {
+      "format": "ksuid",
+      "length_chars": 27,
+      "length_bytes": 20,
+      "timestamp_bits": 32,
+      "randomness_bits": 128,
+      "sortable": true,
+      "security": "csp_rng",
+      "optional": true,
+      "note": "different epoch (2014-05-13) — never compared numerically against ULID time fields"
+    },
+    "nanoid": {
+      "format": "nanoid",
+      "length_chars": 21,
+      "length_bytes": 0,
+      "timestamp_bits": 0,
+      "randomness_bits": 126,
+      "sortable": false,
+      "security": "csp_rng",
+      "optional": true,
+      "note": "random string, NOT a structured identifier — labeled separately in all reports"
+    }
+  },
+  "security_classes": {
+    "csp_rng": "cryptographically secure randomness (OS entropy seeded)",
+    "prng": "non-secure PRNG — MUST be labeled 'insecure' wherever benchmarked",
+    "mixed": "library offers both; benchmarked as separate entries <lib>#secure and <lib>#insecure"
+  }
+}

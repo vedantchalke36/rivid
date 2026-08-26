@@ -1,0 +1,109 @@
+name: Benchmarks
+
+on:
+  # PRs get a short smoke only — never the expensive matrix.
+  pull_request:
+    paths:
+      - "crates/**"
+      - "src/**"
+      - "benchmarks/**"
+      - ".github/workflows/bench.yml"
+  # Full cross-platform matrix nightly.
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "smoke | full"
+        default: "smoke"
+        type: choice
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'smoke')
+    name: Bench smoke (correctness gate + quick)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: npm install
+      - run: npx napi build --platform --release
+      # Correctness gates run inside each suite and FAIL the job on violation.
+      - run: node benchmarks/runner/run.mjs --quick
+        env:
+          BENCH_OUT: ""
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-smoke-results
+          path: benchmarks/results/
+
+  full:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')
+    name: Full — ${{ matrix.os }} (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+          - os: macos-latest
+            arch: arm64
+          - os: windows-latest
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: npm install
+      - run: npx napi build --platform --release
+      - name: Run all detected suites (full workloads)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            node benchmarks/runner/run.mjs --language=node,rust,python,go
+          else
+            node benchmarks/runner/run.mjs
+          fi
+      - name: Generate cross-language report
+        shell: bash
+        run: node benchmarks/runner/report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            benchmarks/results/
+            benchmarks/reports/

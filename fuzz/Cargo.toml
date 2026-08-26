@@ -1,0 +1,77 @@
+[package]
+name = "rivid-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.rivid-core]
+path = "../crates/core"
+
+[[bin]]
+name = "decode_ulid"
+path = "fuzz_targets/decode_ulid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_base58"
+path = "fuzz_targets/decode_base58.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_base64url"
+path = "fuzz_targets/decode_base64url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_sortable"
+path = "fuzz_targets/decode_sortable.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "validate"
+path = "fuzz_targets/validate.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "roundtrips"
+path = "fuzz_targets/roundtrips.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "uuid_from_str"
+path = "fuzz_targets/uuid_from_str.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "batch_counts"
+path = "fuzz_targets/batch_counts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "monotonic_state"
+path = "fuzz_targets/monotonic_state.rs"
+test = false
+doc = false
+bench = false

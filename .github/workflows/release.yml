@@ -1,0 +1,279 @@
+name: Release (platform builds + npm publish)
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build artifacts + tarball preview, do not publish
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  id-token: write # npm provenance
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  BINARY_NAME: rivid-core
+
+jobs:
+  build:
+    name: Build / ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            musl: true
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+            musl: true
+          - target: x86_64-apple-darwin
+            runner: macos-13
+          - target: aarch64-apple-darwin
+            runner: macos-14
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          # Cross builds need the exact target triple installed.
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install musl toolchain
+        if: matrix.musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install
+      - name: Build native artifact
+        run: npx napi build --platform --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.target }}
+          path: |
+            *.node
+            index.js
+            index.d.ts
+          if-no-files-found: error
+
+  # Dry-run mode: proves the whole packaging chain and uploads the exact
+  # tarball that WOULD be published, without touching the registry.
+  pack-preview:
+    name: Tarball preview (dry-run)
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: npm install
+      - name: Assemble package tree
+        run: |
+          cp artifacts/bindings-x86_64-unknown-linux-gnu/index.js index.js
+          cp artifacts/bindings-x86_64-unknown-linux-gnu/index.d.ts index.d.ts
+          npx tsc -p config/tsconfig.esm.json
+          npx tsc -p config/tsconfig.cjs.json
+          node scripts/post-build.mjs
+          npx napi create-npm-dir -t .
+          npx napi artifacts
+      - name: Guards (tag/version + required files)
+        run: bash .github/scripts/release-guards.sh
+      - name: Platform packages contain their binaries
+        run: |
+          find npm -maxdepth 2 -name '*.node' | sort
+          count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
+          if [ "$count" -ne 7 ]; then
+            echo "::error::expected 7 platform binaries, found $count"; exit 1
+          fi
+      - name: Pack
+        run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pack-preview-tarball
+          path: rivid-core-*.tgz
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm
+    needs: build
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - run: npm install
+      - name: Assemble package tree
+        run: |
+          cp artifacts/bindings-x86_64-unknown-linux-gnu/index.js index.js
+          cp artifacts/bindings-x86_64-unknown-linux-gnu/index.d.ts index.d.ts
+          npx tsc -p config/tsconfig.esm.json
+          npx tsc -p config/tsconfig.cjs.json
+          node scripts/post-build.mjs
+          npx napi create-npm-dir -t .
+          npx napi artifacts
+      - name: Guards (tag/version + required files)
+        run: bash .github/scripts/release-guards.sh
+      - name: Platform packages contain their binaries
+        run: |
+          count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
+          if [ "$count" -ne 7 ]; then
+            echo "::error::expected 7 platform binaries, found $count"; exit 1
+          fi
+      - name: Publish platform packages
+        run: npx napi prepublish -t --skip-questions
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish root package
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+      - name: Extract changelog section
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$VERSION" node -e '
+            const fs = require("fs");
+            const v = process.env.VERSION;
+            const md = fs.readFileSync("docs/CHANGELOG.md", "utf8");
+            const re = new RegExp("^##\\s\\[" + v + "\\][^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s\\[|$)");
+            const m = re.exec(md);
+            fs.writeFileSync("/tmp/body.md", (m && m[1] && m[1].trim()) || ("rivid " + v));
+          '
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "rivid ${GITHUB_REF_NAME#v}" --notes-file /tmp/body.md --verify-tag
+
+  # Installs the ACTUAL published package through three package managers and
+  # loads both module systems — catches broken optionalDependencies wiring,
+  # wrong libc/cpu gates and loader regressions users would hit.
+  verify:
+    name: Verify published (${{ matrix.pm }} / ${{ matrix.os }})
+    needs: [publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            pm: npm
+          - os: ubuntu-latest
+            pm: pnpm
+          - os: ubuntu-latest
+            pm: bun
+          - os: macos-latest
+            pm: npm
+          - os: macos-latest
+            pm: bun
+          - os: windows-latest
+            pm: npm
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install alternate package managers
+        if: matrix.pm == 'pnpm'
+        run: npm install -g pnpm@9
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.pm == 'bun'
+        with:
+          bun-version: latest
+      - name: Wait for registry propagation
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          if ! echo "$VER" | grep -Eq '^([0-9]+)\.([0-9]+)\.([0-9]+)'; then
+            echo "::error::ref name $GITHUB_REF_NAME does not carry a version"
+            exit 1
+          fi
+          ok=""
+          for _ in $(seq 1 30); do
+            if npm view "@rivid/core@$VER" version >/dev/null 2>&1; then ok=1; break; fi
+            sleep 10
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::@rivid/core@$VER not resolvable after 5 minutes"; exit 1
+          fi
+          echo "VER=$VER" >> "$GITHUB_ENV"
+      - name: Install via ${{ matrix.pm }}
+        run: |
+          mkdir smoke && cd smoke
+          npm init -y >/dev/null
+          case "${{ matrix.pm }}" in
+            npm)  npm install "@rivid/core@$VER" ;;
+            pnpm) pnpm add "@rivid/core@$VER" ;;
+            bun)  bun add "@rivid/core@$VER" ;;
+          esac
+      - name: Load CJS + ESM
+        run: |
+          cd smoke
+          node -e "const c=require('@rivid/core'); if(!c.isValid(c.ulid())) process.exit(1)"
+          node -e "import('@rivid/core').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
+          echo "${{ matrix.pm }} @ Node $(node --version): OK"
+
+  verify-musl:
+    name: Verify published (musl / Alpine)
+    needs: [publish]
+    runs-on: ubuntu-latest
+    container:
+      image: node:22-alpine
+    steps:
+      - name: Wait for registry propagation
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          i=0
+          while [ "$i" -lt 30 ]; do
+            if npm view "@rivid/core@$VER" version >/dev/null 2>&1; then break; fi
+            sleep 10
+            i=$((i + 1))
+          done
+          if [ "$i" -ge 30 ]; then
+            echo "::error::@rivid/core@$VER not resolvable after 5 minutes"
+            exit 1
+          fi
+          echo "VER=$VER" >> "$GITHUB_ENV"
+      - name: Install (npm resolves the musl binary via libc gate)
+        run: |
+          mkdir smoke && cd smoke
+          npm init -y >/dev/null
+          npm install "@rivid/core@$VER"
+      - name: Load CJS + ESM
+        run: |
+          cd smoke
+          node -e "const c=require('@rivid/core'); if(!c.isValid(c.ulid())) process.exit(1)"
+          node -e "import('@rivid/core').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
+          echo "musl @ Node $(node --version): OK"

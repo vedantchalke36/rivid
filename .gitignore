@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+target/
+dist/
+
+# NAPI-RS output (generated on prepublish)
+*.node
+index.js
+index.d.ts
+
+# Platform-specific npm binaries
+npm/
+aarch64-*/
+x86_64-*/
+
+# Benchmark results (per-machine, not committed)
+benchmarks/results/*.json
+
+# Java/JMH build output
+benchmarks/java/build/
+
+# Historical benchmark snapshots are kept; only top-level scratch files ignored.
+
+# Lockfiles (let pnpm/workspace manage)
+# package-lock.json  # commented out - we need it for CI
+
+# Coverage/artifacts
+coverage/
+*.lcov
+
+# OS specific
+.DS_Store

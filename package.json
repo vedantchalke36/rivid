@@ -1,0 +1,112 @@
+{
+  "name": "@rivid/core",
+  "version": "0.1.0",
+  "description": "High-performance, spec-compatible ULID generation for Node.js and Bun, powered by a Rust core via NAPI-RS. Includes monotonic ULIDs, bulk generation, binary APIs, alternative encodings and UUIDv7.",
+  "author": {
+    "name": "Vedant Chalke"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "sideEffects": true,
+  "homepage": "https://github.com/vedantchalke36/rivid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vedantchalke36/rivid.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vedantchalke36/rivid/issues"
+  },
+  "keywords": [
+    "ulid",
+    "uuid",
+    "uuidv7",
+    "id",
+    "identifier",
+    "sortable",
+    "monotonic",
+    "base32",
+    "crockford",
+    "napi",
+    "rust",
+    "performance",
+    "bulk",
+    "fast"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "rivid": "./cli/rivid.mjs"
+  },
+  "files": [
+    "dist/",
+    "index.js",
+    "index.d.ts",
+    "cli/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "napi": {
+    "binaryName": "rivid-core",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-apple-darwin"
+      ]
+    }
+  },
+  "optionalDependencies": {
+    "@rivid/core-darwin-arm64": "0.1.0",
+    "@rivid/core-darwin-x64": "0.1.0",
+    "@rivid/core-linux-arm64-gnu": "0.1.0",
+    "@rivid/core-linux-arm64-musl": "0.1.0",
+    "@rivid/core-linux-x64-gnu": "0.1.0",
+    "@rivid/core-linux-x64-musl": "0.1.0",
+    "@rivid/core-win32-x64-msvc": "0.1.0"
+  },
+  "scripts": {
+    "build": "napi build --platform --release && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",
+    "build:debug": "napi build --platform && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",
+    "test": "node --import tsx --test __test__/*.test.mts",
+    "test:rust": "cargo test -p rivid-core",
+    "lint": "tsc --noEmit -p config/tsconfig.check.json",
+    "fmt": "cargo fmt && cargo clippy --workspace --all-targets -- -D warnings",
+    "bench": "tsx benchmarks/run.mts",
+    "bench:quick": "tsx benchmarks/run.mts --quick",
+    "bench:startup": "node benchmarks/startup.mjs",
+    "bench:rust": "cargo run --release -p rivid-core --example bench_direct",
+    "bench:xlang": "./bench.sh",
+    "bench:xlang:quick": "./bench.sh --quick",
+    "bench:db": "./bench.sh --db",
+    "prepublishOnly": "napi prepublish -t --skip-questions"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4",
+    "@types/node": "^22.20.1",
+    "@types/pg": "^8.15.4",
+    "drizzle-orm": "^0.44.2",
+    "pg": "^8.16.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "ulid": "^3.0.2",
+    "ulidx": "^2.4.1"
+  }
+}

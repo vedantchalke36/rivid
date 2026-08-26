@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an enhancement or new capability.
+title: 'feat: '
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What problem does this solve? How often do you hit it?
+      placeholder: 'When generating 10M records in a batch…'
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes: { label: Proposal & alternative options considered }
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: API / perf / compat trade-offs
+      description: 'How should we weigh, e.g., an extra NAPI crossing versus ergonomic types?'
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - { label: relevant benchmarks or repro would show this is measurable }
+        - { label: this request keeps the ULID headline promise intact }

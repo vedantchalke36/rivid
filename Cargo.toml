@@ -1,0 +1,28 @@
+[package]
+name = "rivid-core-napi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "NAPI-RS bindings for the rivid Rust ID engine"
+repository = "https://github.com/vedantchalke36/rivid"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2.16", default-features = false, features = ["napi6"] }
+napi-derive = "2.16"
+rivid-core = { path = "./crates/core" }
+
+[build-dependencies]
+napi-build = "2"
+
+[workspace]
+members = ["crates/core"]
+exclude = ["fuzz"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

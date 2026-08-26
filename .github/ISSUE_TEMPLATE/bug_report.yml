@@ -1,0 +1,46 @@
+name: Bug report
+description: Let us know about something that isn't working.
+title: 'bug: '
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes: { value: 'Fill in the details below. Delete everything that does not apply.' }
+  - type: input
+    id: version
+    attributes:
+      label: '@rivid/core version'
+      placeholder: '0.1.0'
+    validations: { required: true }
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Linux, macOS, Windows, Other]
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime & Node version
+      options: [Node 18, Node 20, Node 22, Node 24, Bun]
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal commands/snippets that reproduce the bug.
+      placeholder: '```ts\nimport { ulid } from "@rivid/core"\n// …\n```'
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: Expected behaviour }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Actual behaviour & logs
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Have you checked that …
+      options:
+        - { label: you built the latest release from a clean checkout }
+        - { label: the existing open issues don't already cover this }
+        - { label: you ran the reproduction outside of your application if possible }

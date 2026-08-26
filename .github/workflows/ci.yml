@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Rust fmt & clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  rust-test:
+    name: Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p rivid-core --all-features
+      - run: cargo test -p rivid-core --release
+
+  build-test:
+    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 20, 22, 24]
+        exclude:
+          - os: macos-latest
+            node: 18
+    runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install
+      # Debug build is sufficient for tests and keeps CI fast.
+      - run: npx napi build --platform
+      - run: npx tsc -p config/tsconfig.esm.json && npx tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs
+      - run: npx tsc --noEmit -p config/tsconfig.check.json
+      - name: Type / unit tests
+        run: node --import tsx --test __test__/*.test.mts
+      - name: "Smoke: package loads from dist (CJS + ESM)"
+        run: |
+          node -e "const m=require('./dist/cjs/index.js'); if(!m.ulid()) process.exit(1)"
+          node -e "import('./dist/esm/index.js').then(m=>{if(!m.ulid())process.exit(1)})"
+      - name: "Smoke: CLI"
+        run: node cli/rivid.mjs ulid --count 5 && node cli/rivid.mjs validate "$(node cli/rivid.mjs ulid)"
+      - name: Benchmark smoke (quick mode)
+        if: matrix.node == 22 && matrix.os == 'ubuntu-latest'
+        run: node --import tsx benchmarks/run.mts --quick --suite=single
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-audit
+      - run: cargo audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm audit --omit=dev
+
+  fuzz-smoke:
+    name: Fuzz smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: taiki-e/install-action@cargo-fuzz
+      - uses: Swatinem/rust-cache@v2
+      - name: Short fuzz run of every target
+        run: |
+          for t in decode_ulid decode_base58 decode_base64url decode_sortable validate roundtrips uuid_from_str batch_counts monotonic_state; do
+            cargo fuzz run "$t" -- -max_total_time=20
+          done
+
+  bun-smoke:
+    name: Bun runtime smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      # Debug build is sufficient for a load test.
+      - run: npx napi build --platform
+      - run: npx tsc -p config/tsconfig.esm.json && npx tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: CJS require + first ID
+        run: bun -e "const m=require('./dist/cjs/index.js'); if(!m.isValid(m.ulid())) process.exit(1)"
+      - name: ESM import + first ID
+        run: bun -e "import('./dist/esm/index.js').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
