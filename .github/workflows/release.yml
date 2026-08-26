@@ -182,6 +182,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "rivid ${GITHUB_REF_NAME#v}" --notes-file /tmp/body.md --verify-tag
 
+  # Rust engine ships independently to crates.io from the same tag.
+  publish-crate:
+    name: Publish rivid-core to crates.io
+    needs: [build]
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Guard tag ↔ crate version
+        if: github.event_name == 'push'
+        run: |
+          CRATE_V="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name=="rivid-core") | .version')"
+          TAG_V="${GITHUB_REF_NAME#v}"
+          if [ "$TAG_V" != "$CRATE_V" ]; then
+            echo "::error::tag v$TAG_V != rivid-core $CRATE_V"; exit 1
+          fi
+      - name: Publish
+        if: github.event_name == 'push'
+        run: cargo publish -p rivid-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_TOKEN }}
+      - name: Verify packaging (dry-run mode)
+        if: github.event_name != 'push'
+        run: cargo publish -p rivid-core --dry-run --allow-dirty
+
   # Installs the ACTUAL published package through three package managers and
   # loads both module systems — catches broken optionalDependencies wiring,
   # wrong libc/cpu gates and loader regressions users would hit.

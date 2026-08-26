@@ -117,3 +117,52 @@ jobs:
         run: bun -e "const m=require('./dist/cjs/index.js'); if(!m.isValid(m.ulid())) process.exit(1)"
       - name: ESM import + first ID
         run: bun -e "import('./dist/esm/index.js').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
+
+  wasm-smoke:
+    name: Wasm build + spec vectors (nodejs target)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/wasm
+      - uses: taiki-e/install-action@wasm-pack
+      - name: Build @rivid/wasm (release)
+        run: wasm-pack build crates/wasm --target nodejs --out-dir pkg --release
+      - name: Reference-vector suite
+        run: node crates/wasm/test.mjs
+
+  coverage:
+    name: Coverage summary (Rust + JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Rust coverage
+        run: |
+          cargo llvm-cov -p rivid-core --all-features --summary-only \
+            | tee rust-cov.txt | tail -n +1 >> "$GITHUB_STEP_SUMMARY" || true
+          grep -q "TOTAL" rust-cov.txt && echo "rust coverage table OK"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx napi build --platform
+      - name: JS coverage → job summary
+        run: |
+          {
+            echo "### JavaScript (src/*.ts)"
+            node --import tsx --test --experimental-test-coverage __test__/*.test.mts 2>&1 \
+              | sed -n '/start of coverage report/,/end of coverage report/p'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-rust
+          path: rust-cov.txt

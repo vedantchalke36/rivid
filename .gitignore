@@ -13,6 +13,11 @@ npm/
 aarch64-*/
 x86_64-*/
 
+# Wasm build output
+crates/wasm/pkg/
+crates/wasm/pkg-web/
+crates/wasm/pkg-bundler/
+
 # Benchmark results (per-machine, not committed)
 benchmarks/results/*.json
 

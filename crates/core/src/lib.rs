@@ -52,14 +52,40 @@ pub const TIME_MS: u64 = 1000;
 ///
 /// A system clock set before 1970 clamps to `0` rather than panicking; a
 /// ULID timestamp is unsigned by specification.
+///
+/// On platforms without a real-time clock (Wasm, some embedded targets),
+/// [`set_clock_override`] supplies the value instead; `SystemTime` is then
+/// never touched.
 #[inline]
 #[must_use]
 pub fn now_ms() -> u64 {
+    if CLOCK_OVERRIDE_ACTIVE.load(std::sync::atomic::Ordering::Relaxed) {
+        return CLOCK_OVERRIDE_MS.load(std::sync::atomic::Ordering::Relaxed);
+    }
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         // System clock before 1970: clamp to 0 rather than panicking. A ULID
         // timestamp is unsigned by specification.
         .map_or(0, |d| d.as_millis() as u64)
+}
+
+static CLOCK_OVERRIDE_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static CLOCK_OVERRIDE_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Force [`now_ms`] (and therefore every default-clock generation path) to
+/// return `ms` until [`clear_clock_override`] is called.
+///
+/// Intended for embedders on clock-less platforms — the Wasm bindings feed
+/// `Date.now()` through this — and for deterministic integration tests.
+pub fn set_clock_override(ms: u64) {
+    CLOCK_OVERRIDE_MS.store(ms, std::sync::atomic::Ordering::Relaxed);
+    CLOCK_OVERRIDE_ACTIVE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Return to reading the platform wall clock.
+pub fn clear_clock_override() {
+    CLOCK_OVERRIDE_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
 }
 
 #[cfg(test)]
@@ -72,5 +98,30 @@ mod tests {
         assert_eq!(ULID_LEN, 26);
         assert_eq!(TIME_LEN, 10);
         assert_eq!(RANDOM_LEN, 16);
+    }
+
+    #[test]
+    fn clock_override_round_trip() {
+        clear_clock_override();
+        let real = now_ms();
+
+        set_clock_override(1_700_000_000_000);
+        assert_eq!(now_ms(), 1_700_000_000_000);
+
+        clear_clock_override();
+        let after = now_ms();
+        assert!(after >= real, "clock override must release cleanly");
+    }
+
+    #[test]
+    fn batch_paths_honor_override() {
+        use crate::batch::generate_ulid_strings;
+        clear_clock_override();
+        set_clock_override(1_469_918_176_385);
+        let ids = generate_ulid_strings(4);
+        clear_clock_override();
+        for id in ids {
+            assert_eq!(&id[..TIME_LEN], "01ARYZ6S41");
+        }
     }
 }

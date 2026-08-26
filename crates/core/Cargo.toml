@@ -6,7 +6,7 @@ rust-version = "1.73"
 license = "MIT"
 description = "Rust ID engine powering rivid: ULID, UUIDv7, Crockford Base32, Base58, Base64URL and batch generation"
 repository = "https://github.com/vedantchalke36/rivid"
-readme = false
+readme = "README.md"
 keywords = ["ulid", "uuid", "uuidv7", "identifier", "base32", "sortable"]
 categories = ["algorithms", "encoding", "development-tools"]
 
