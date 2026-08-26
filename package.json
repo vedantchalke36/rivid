@@ -86,6 +86,7 @@
     "build": "napi build --platform --release && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",
     "build:debug": "napi build --platform && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",
     "test": "node --import tsx --test __test__/*.test.mts",
+    "test:coverage": "node --import tsx --test --experimental-test-coverage __test__/*.test.mts",
     "test:rust": "cargo test -p rivid-core",
     "lint": "tsc --noEmit -p config/tsconfig.check.json",
     "fmt": "cargo fmt && cargo clippy --workspace --all-targets -- -D warnings",

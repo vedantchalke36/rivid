@@ -200,7 +200,7 @@ Everything below was produced by the committed harness on:
 CPU: Intel Core i5-10210U @ 1.60GHz · Linux x64 · Node v24.19.0 · napi release build
 ```
 
-Reproduce yourself: `pnpm bench` (results persist to `benchmarks/results/latest.json`).
+Reproduce yourself: `npm run bench` (results persist to `benchmarks/results/latest.json`).
 
 ### Single ID generation
 
@@ -292,7 +292,7 @@ npx napi build --platform        # debug native build
 npm test                         # 87 JS tests
 cargo test -p rivid-core         # 57 Rust tests
 npm run lint                     # type check
-pnpm bench --quick               # benchmark smoke
+npm run bench --quick               # benchmark smoke
 ./bench.sh                       # cross-language suite
 ```
 

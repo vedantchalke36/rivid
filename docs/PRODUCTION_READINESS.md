@@ -68,3 +68,15 @@ Wave 2 (TypeORM, Django, Diesel, SeaORM, Ent, Hibernate/Spring): **NOT IMPLEMENT
 | ORM_IMPLEMENTATION_PLAN / ORM_INTEGRATIONS | PASS |
 | SECURITY / CONTRIBUTING / COC / CHANGELOG / LICENSE | PASS |
 | Per-integration docs | PARTIAL — embedded guides in ORM_INTEGRATIONS.md; standalone READMEs pending |
+
+## Addendum — 2026-08-26 release-pipeline rework
+
+| Item | Status | Evidence |
+|---|---|---|
+| Release automation (npm) | **PARTIAL → near-PASS** | release.yml rebuilt: tag↔version guard, tarball gates, `create-npm-dir`+`napi artifacts`+`napi prepublish` flow, GH Release from CHANGELOG, verify jobs (npm/pnpm/bun × OS + Alpine musl). Dry-run run 32949112519: **6/7 platform builds succeeded** (both musl targets incl. new arm64-musl); macos-x64 cancelled by operator, not failed. Registry publish pending NPM_TOKEN secret + npm org `rivid` (scope) creation |
+| Platform coverage | **PASS (7 targets)** | linux gnu/musl × x64+arm64, darwin x64+arm64, win32-x64 — packages generated via napi v2 `triples.additional` |
+| Bun support claim | now **tested** | ci.yml `bun-smoke` job: CJS require + ESM import of dist build under Bun |
+| Supply-chain CI | expanded | security.yml: CodeQL (js-ts + rust), PR dependency-review, weekly scheduled cargo/npm audit; dependabot (actions/npm/cargo/fuzz-cargo) |
+| Type-safety regression guard | PASS | `__test__/types.compile.mts` pins public API shapes in lint (post-build regex rewrites can no longer silently drift) |
+| Coverage tooling | minimal | `npm run test:coverage` (Node built-in reporter); no gate or badge yet |
+| Repo | github.com/vedantchalke36/rivid (**private** until launch) | Discussions + branch protection deferred to public flip (free-plan gated) |
