@@ -1,0 +1,64 @@
+{
+  "name": "@rivid/drizzle",
+  "version": "0.1.0",
+  "description": "ULID/UUIDv7 column helpers for Drizzle ORM, powered by the rivid engine (@rivid/core)",
+  "author": {
+    "name": "Vedant Chalke"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/vedantchalke36/rivid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vedantchalke36/rivid.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vedantchalke36/rivid/issues"
+  },
+  "keywords": [
+    "drizzle",
+    "drizzle-orm",
+    "ulid",
+    "uuidv7",
+    "primary-key",
+    "sortable",
+    "identifier"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "drizzle-orm": ">=0.36"
+  },
+  "devDependencies": {
+    "@rivid/core": "file:../..",
+    "@types/node": "^22.20.1",
+    "drizzle-orm": "^0.44.2",
+    "pg": "^8.23.0",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-ts-package.mjs",
+    "test": "node --import tsx --test test/*.test.mts"
+  }
+}

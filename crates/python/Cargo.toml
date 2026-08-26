@@ -1,0 +1,23 @@
+[package]
+name = "rivid-python"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Python bindings for the rivid ID engine — ULID/UUIDv7 generation"
+repository = "https://github.com/vedantchalke36/rivid"
+publish = false
+
+# Standalone workspace: ships as a Python wheel, not a crates.io crate.
+[workspace]
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+rivid-core = { path = "../core" }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+
+[profile.release]
+lto = true
+codegen-units = 1

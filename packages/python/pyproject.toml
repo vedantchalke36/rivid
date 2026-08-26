@@ -1,0 +1,35 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "rivid"
+version = "0.1.0"
+description = "High-performance ULID/UUIDv7 generation powered by a Rust engine — SQLAlchemy TypeDecorators included"
+authors = [{ name = "Vedant Chalke" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["ulid", "uuidv7", "sqlalchemy", "identifier", "sortable", "primary-key"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Database",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+[project.optional-dependencies]
+sqlalchemy = ["sqlalchemy>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/vedantchalke36/rivid"
+Repository = "https://github.com/vedantchalke36/rivid"
+
+[tool.maturin]
+manifest-path = "../../crates/python/Cargo.toml"
+python-source = "src"
+module-name = "rivid._native"
+include = [{ path = "LICENSE", format = ["sdist", "wheel"] }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

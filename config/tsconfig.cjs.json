@@ -4,7 +4,10 @@
     "outDir": "../dist/cjs",
     "rootDir": "../src",
     "module": "CommonJS",
-    "moduleResolution": "Node10"
+    "moduleResolution": "Node10",
+    "declarationMap": false
   },
-  "include": ["../src/**/*.ts"]
+  "include": [
+    "../src/**/*.ts"
+  ]
 }
