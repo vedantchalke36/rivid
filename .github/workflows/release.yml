@@ -154,7 +154,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish root package
-        run: npm publish --provenance --access public
+        # Provenance requires a public repository; while private, fall back
+        # to a plain publish so releases are never blocked.
+        run: |
+          if ! npm publish --provenance --access public; then
+            echo "::warning::provenance publish failed (private repo?) — retrying without it"
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
