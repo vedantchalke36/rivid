@@ -1,0 +1,26 @@
+{
+  "name": "@rivid/integration-react-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React + Vite integration test for @rivid/wasm — ULID/UUIDv7 in the browser",
+  "type": "module",
+  "scripts": {
+    "sync:wasm": "node sync-wasm.mjs",
+    "dev": "npm run sync:wasm && vite",
+    "build": "npm run sync:wasm && vite build",
+    "preview": "vite preview",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.7"
+  }
+}

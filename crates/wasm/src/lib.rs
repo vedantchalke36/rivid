@@ -69,13 +69,13 @@ pub fn ulid(seed_time: Option<f64>) -> Result<String, JsError> {
     core::ulid::generate_at(ts).map_err(|e| JsError::new(&e.to_string()))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = ulidBytes)]
 pub fn ulid_bytes() -> Vec<u8> {
     sync_clock();
     core::ulid::generate_bytes16().to_vec()
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = monotonicUlid)]
 pub fn monotonic_ulid(seed_time: Option<f64>) -> Result<String, JsError> {
     let ts = resolve_ts(seed_time)?;
     thread_local! {
@@ -85,26 +85,26 @@ pub fn monotonic_ulid(seed_time: Option<f64>) -> Result<String, JsError> {
     Ok(STATE.with(|s| s.borrow_mut().next_secure_at(ts)))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = generateMany)]
 pub fn generate_many(count: usize) -> Result<Vec<String>, JsError> {
     max_batch(count)?;
     sync_clock();
     Ok(core::batch::generate_ulid_strings(count))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = generateBytes)]
 pub fn generate_bytes(count: usize) -> Result<Vec<u8>, JsError> {
     max_batch(count)?;
     sync_clock();
     Ok(core::batch::generate_ulid_bytes(count))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = isValid)]
 pub fn is_valid(id: &str) -> bool {
     core::ulid::is_valid(id.as_bytes())
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = decodeTime)]
 pub fn decode_time(id: &str) -> Result<f64, JsError> {
     // TIME_MAX < 2^53, so f64 represents every legal value exactly.
     core::ulid::decode_time(id.as_bytes())
@@ -112,7 +112,7 @@ pub fn decode_time(id: &str) -> Result<f64, JsError> {
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = encodeTime)]
 pub fn encode_time(seed_time: Option<f64>) -> Result<String, JsError> {
     let ts = resolve_ts(seed_time)?;
     core::crockford::encode_time_str(ts).map_err(|e| JsError::new(&e.to_string()))
@@ -149,20 +149,20 @@ pub fn uuidv7() -> String {
     core::uuidv7::generate()
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = uuidv7Bytes)]
 pub fn uuidv7_bytes() -> Vec<u8> {
     sync_clock();
     core::uuidv7::generate_bytes16().to_vec()
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = generateUuidV7Many)]
 pub fn generate_uuid_v7_many(count: usize) -> Result<Vec<String>, JsError> {
     max_batch(count)?;
     sync_clock();
     Ok(core::uuidv7::generate_strings(count))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = uuidv7Time)]
 pub fn uuidv7_time(bytes: &[u8]) -> Result<f64, JsError> {
     let arr: [u8; 16] = bytes
         .try_into()
@@ -192,6 +192,18 @@ impl MonotonicGenerator {
         let ts = resolve_ts(seed_time)?;
         Ok(self.state.next_secure_at(ts))
     }
+}
+
+// ── Conversions ──────────────────────────────────────────────────────────
+
+#[wasm_bindgen(js_name = ulidToUuid)]
+pub fn ulid_to_uuid(id: &str) -> Result<String, JsError> {
+    core::convert::ulid_to_uuid(id).map_err(|e| JsError::new(&e.to_string()))
+}
+
+#[wasm_bindgen(js_name = uuidToUlid)]
+pub fn uuid_to_ulid(uuid: &str) -> Result<String, JsError> {
+    core::convert::uuid_to_ulid(uuid).map_err(|e| JsError::new(&e.to_string()))
 }
 
 // ── Meta ─────────────────────────────────────────────────────────────────
