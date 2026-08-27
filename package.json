@@ -99,8 +99,7 @@
     "bench:rust": "cargo run --release -p rivid-core --example bench_direct",
     "bench:xlang": "./bench.sh",
     "bench:xlang:quick": "./bench.sh --quick",
-    "bench:db": "./bench.sh --db",
-    "prepublishOnly": "napi prepublish -t --skip-questions"
+    "bench:db": "./bench.sh --db"
   },
   "devDependencies": {
     "@napi-rs/cli": "3.8.6",
