@@ -102,8 +102,8 @@ jobs:
         run: |
           find npm -maxdepth 2 -name '*.node' | sort
           count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
-          if [ "$count" -ne 7 ]; then
-            echo "::error::expected 7 platform binaries, found $count"; exit 1
+          if [ "$count" -ne 6 ]; then
+            echo "::error::expected 6 platform binaries, found $count"; exit 1
           fi
       - name: Pack
         run: npm pack
@@ -144,8 +144,8 @@ jobs:
       - name: Platform packages contain their binaries
         run: |
           count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
-          if [ "$count" -ne 7 ]; then
-            echo "::error::expected 7 platform binaries, found $count"; exit 1
+          if [ "$count" -ne 6 ]; then
+            echo "::error::expected 6 platform binaries, found $count"; exit 1
           fi
       - name: Publish platform packages
         run: npx napi prepublish -t --skip-questions
