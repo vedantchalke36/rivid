@@ -54,7 +54,16 @@ jobs:
           key: ${{ matrix.target }}
       - name: Install musl toolchain
         if: matrix.musl
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-musl
+          elif [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+            sudo apt-get install -y musl-tools
+          fi
+      - name: Set cross-linker for musl
+        if: matrix.musl && matrix.target == 'aarch64-unknown-linux-musl'
+        run: echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
