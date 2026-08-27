@@ -146,7 +146,7 @@ jobs:
             echo "::error::expected 5 platform binaries, found $count"; exit 1
           fi
       - name: Publish platform packages
-        run: npx napi prepublish --tagstyle npm --skip-gh-release
+        run: npx napi prepublish --tagstyle npm
       - name: Publish root package
         run: npm publish --provenance --access public
         env:
@@ -223,8 +223,9 @@ jobs:
       - uses: taiki-e/install-action@wasm-pack
       - uses: actions/setup-node@v7
         with:
-          node-version: 22  # npm 10 — pure token path for bootstrap; bump to 24 when switching to trusted publishing
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
+      - run: npm install -g npm@latest
       - run: npm install
       - name: Build wasm targets
         run: |
