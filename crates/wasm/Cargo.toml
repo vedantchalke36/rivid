@@ -22,7 +22,7 @@ console_error_panic_hook = "0.1"
 
 # Browser entropy: this feature feeds rand's ChaCha12 OS-seeding through
 # crypto.getRandomValues via getrandom's unified feature resolution.
-getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
