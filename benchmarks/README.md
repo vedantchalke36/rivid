@@ -2,7 +2,8 @@
 
 Everything measured, nothing hard-coded. Every script writes/prints its
 methodology; numbers are only meaningful when reproduced (see
-`OPTIMIZATION_REPORT.md` §1 for the variance envelope on laptop hardware).
+`docs/development/PERFORMANCE_OPTIMIZATION_REPORT.md` §1 for the variance
+envelope on laptop hardware).
 
 ## Suite
 
@@ -11,7 +12,7 @@ methodology; numbers are only meaningful when reproduced (see
 | `npm run bench` | Full: single-call, bulk (1K→10M), utils, encodings |
 | `npm run bench -- --quick` | Reduced sizes (~20 s), CI-friendly |
 | `npm run bench -- --suite=single\|bulk\|utils\|encodings` | One suite only |
-| `npm run bench:r` | Direct Rust core, no N-API (`bench_direct`) |
+| `npm run bench:rust` | Direct Rust core, no N-API (`bench_direct`) |
 | `npm run bench:startup` | Cold-start cost vs pure-JS libs |
 
 ## Profiling tools

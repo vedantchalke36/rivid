@@ -37,6 +37,9 @@ Usage:
   rivid bytes16
   rivid decode <ulid>            Print timestamp + binary form as hex/UUID
   rivid validate <ulid>...       Exit 0 if all valid, 1 otherwise
+  rivid check [path] [--json] [--strict]
+                                 Audit schemas/models for identifier
+                                 inconsistencies (uses .rivid.yml policy)
   rivid benchmark [--quick]      Run the benchmark suite
   rivid version
 
@@ -98,6 +101,19 @@ listed on stderr).`,
 Usage: rivid benchmark [--quick]
 
 Requires a checked-out repository (the harness lives in benchmarks/).`,
+    check: `rivid check — identifier governance audit
+
+Usage: rivid check [path] [--json] [--strict]
+
+Scans SQL DDL, Prisma schemas and Drizzle table definitions for identifier
+inconsistencies: UUIDs stored as text, FK/PK representation mismatches,
+primary-key drift and unbounded TEXT ids.
+
+  --json         machine-readable report on stdout
+  --strict       treat warnings as failures (exit 1)
+
+A .rivid.yml / .rivid.json policy file at the scan root declares intentional
+conventions (see README). Exit codes: 0 clean, 1 findings, 2 usage error.`,
   }
   const text = lines[cmd]
   if (!text) return false
@@ -175,6 +191,12 @@ switch (cmd) {
       process.exit(1)
     }
     console.log(`ok (${rest.length} valid)`)
+    break
+  }
+
+  case 'check': {
+    const { runCheck } = await import('./check.mjs')
+    process.exit(await runCheck(rest, new URL('..', import.meta.url).pathname))
     break
   }
 

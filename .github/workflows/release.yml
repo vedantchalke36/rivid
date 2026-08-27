@@ -38,8 +38,6 @@ jobs:
           - target: aarch64-unknown-linux-musl
             runner: ubuntu-24.04-arm
             musl: true
-          - target: x86_64-apple-darwin
-            runner: macos-13
           - target: aarch64-apple-darwin
             runner: macos-14
           - target: x86_64-pc-windows-msvc
@@ -171,7 +169,7 @@ jobs:
           VERSION="$VERSION" node -e '
             const fs = require("fs");
             const v = process.env.VERSION;
-            const md = fs.readFileSync("docs/CHANGELOG.md", "utf8");
+            const md = fs.readFileSync("CHANGELOG.md", "utf8");
             const re = new RegExp("^##\\s\\[" + v + "\\][^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s\\[|$)");
             const m = re.exec(md);
             fs.writeFileSync("/tmp/body.md", (m && m[1] && m[1].trim()) || ("rivid " + v));

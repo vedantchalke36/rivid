@@ -24,6 +24,15 @@ benchmarks/results/*.json
 
 # Java/JMH build output
 benchmarks/java/build/
+benchmarks/java/.gradle/
+
+# Python caches
+.pytest_cache/
+.venv/
+__pycache__/
+
+# Editor/backup scratch files
+*~
 
 # Historical benchmark snapshots are kept; only top-level scratch files ignored.
 

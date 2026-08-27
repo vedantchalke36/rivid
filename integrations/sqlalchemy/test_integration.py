@@ -1,11 +1,10 @@
 """
 SQLAlchemy 2.0 + ULID primary keys on PostgreSQL — integration tests.
 
-HONESTY NOTE: no rivid-python package exists yet; generation uses
-python-ulid (identical 128-bit layout / canonical encoding). These tests
-validate persistence semantics (ordering, keyset pagination, transactions,
-bulk) that any generator must pass. Swap `new_ulid()` when rivid-python
-ships.
+Generation flows through the genuine rivid engine: the `rivid` Python
+package (packages/python) wraps the same Rust core as @rivid/core via
+PyO3. These tests validate persistence semantics (ordering, keyset
+pagination, transactions, bulk) against live PostgreSQL.
 
 Idiomatic exposure: `ULIDType` TypeDecorator maps CHAR(26) <-> str so
 models declare `id: Mapped[str] = mapped_column(ULIDType, primary_key=True)`
@@ -19,6 +18,7 @@ import uuid as _uuid
 from datetime import datetime, timezone
 
 import pytest
+import rivid
 from sqlalchemy import (
     String, Text, DateTime, func, select, create_engine, insert,
     MetaData, Table, Column, Integer,
@@ -26,15 +26,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     DeclarativeBase, Mapped, mapped_column, Session,
 )
-from ulid import ULID  # python-ulid
 
 
 def new_ulid() -> str:
-    return str(ULID())
+    return rivid.ulid()
 
 
 def ulid_timestamp_ms(u: str) -> int:
-    return int(ULID.from_str(u).timestamp) * 1000  # stored in seconds
+    return rivid.decode_time(u)
 
 
 DATABASE_URL = os.environ.get(
@@ -113,7 +112,7 @@ def test_order_by_id_matches_insertion_time():
     rows = []
     for i in range(500):
         ts_ms = int(base.timestamp() * 1000) + i
-        rows.append({"id": str(ULID.from_timestamp(ts_ms)), "email": f"o{i}@x.io", "name": "O"})
+        rows.append({"id": rivid.ulid(ts_ms), "email": f"o{i}@x.io", "name": "O"})
     with engine.begin() as c:
         c.execute(User.__table__.insert(), rows)
 

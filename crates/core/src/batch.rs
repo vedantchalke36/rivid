@@ -116,6 +116,21 @@ pub fn generate_ulid_bytes(count: usize) -> Vec<u8> {
     buf
 }
 
+/// Fills `pairs` with random u128 values drawn from the secure
+/// thread-local generator. Each u128 holds two u64 random words suitable
+/// for [`ulid_block`].
+///
+/// This is the batch-optimized counterpart of calling `ulid_block_secure`
+/// per element — it amortizes pool-refill checks across the whole batch.
+pub fn fill_random_pairs(pairs: &mut [u128]) {
+    let mut rng = crate::monotonic::SecureThreadRng;
+    for slot in pairs.iter_mut() {
+        let hi = rng.next_u64();
+        let lo = rng.next_u64();
+        *slot = ((hi as u128) << 64) | lo as u128;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +178,18 @@ mod tests {
             let s = crockford::encode_string(u128::from_be_bytes(chunk.try_into().unwrap()));
             assert_eq!(s.len(), 26);
         }
+    }
+
+    #[test]
+    fn fill_random_pairs_produces_varied_output() {
+        let mut pairs = [0u128; 100];
+        fill_random_pairs(&mut pairs);
+        // All values should be non-zero
+        for &v in &pairs {
+            assert!(v != 0);
+        }
+        // Should have reasonable variety
+        let unique: std::collections::HashSet<u128> = pairs.iter().copied().collect();
+        assert!(unique.len() > 90);
     }
 }

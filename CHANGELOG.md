@@ -3,6 +3,60 @@
 All notable changes are documented here. The format is inspired by
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0] — 2026-08-27
+
+First release declaring the identifier API surface stable.
+
+### Added
+
+- **Identifier governance**: `rivid check` audits SQL DDL, Prisma schemas and
+  Drizzle table definitions for identifier inconsistencies (UUID-as-text,
+  FK/PK representation mismatches, primary-key drift, unbounded TEXT ids) with
+  a `.rivid.yml`/`.rivid.json` policy file for intentional conventions,
+  `--json` machine-readable output, `--strict` mode, and GitHub Actions
+  annotations (`.github/actions/rivid-check` composite action).
+- Documentation architecture: user guides under `docs/` (identifiers,
+  databases, postgres, orm, wasm, cli, benchmarking, microservices, events,
+  queues, caching, idempotency, outbox-inbox), internal engineering reports
+  under `docs/development/`.
+- WASM documentation ([docs/wasm.md](docs/wasm.md)) covering native-vs-WASM
+  selection, randomness/clock behavior, and build commands.
+
+### Changed
+
+- README rewritten as a concise landing page; every performance number
+  re-verified against `benchmarks/results/latest.json` (2026-08-26) and
+  labeled by layer (Rust core / native binding / bulk API / database).
+- SQLAlchemy integration now generates through the genuine rivid engine
+  (`rivid` PyO3 package) instead of the python-ulid stand-in; all 6 tests
+  re-verified against live PostgreSQL.
+- Platform scope narrowed: **Intel Mac (x86_64-apple-darwin) prebuilt
+  binaries are no longer built or published** — macOS is Apple Silicon
+  (arm64) only. Intel Mac users can compile from source.
+- Integrations whose identifiers did not flow through the rivid engine were
+  removed rather than shipped as pretense (the Go `database/sql` and GORM
+  suites used the `oklog/ulid` stand-in). Schema guidance for Go ORMs
+  remains in `docs/orm.md`; a rivid Go binding is on the roadmap.
+- Bulk-performance claim scoped precisely: "up to ~2,000×" now explicitly
+  applies to bulk *binary* generation (`generateBytes`/`generateInto`);
+  `generateMany` (string API) is quoted separately.
+- ULID↔UUID conversion documented as raw 128-bit reinterpretation (not an
+  RFC UUIDv7 transformation); ordering guarantees scoped per identifier
+  family, with no claim of cross-machine causal ordering.
+- Security reporting policy moved to `.github/SECURITY.md`; the security
+  guide remains at the root `SECURITY.md`.
+- CLI type surface: root `index.d.ts` now declares `string[]` returns for
+  batch APIs directly (previously patched post-build).
+- CI hygiene: Gradle caches, pytest caches and backup scratch files no longer
+  tracked; clippy clean on Rust 1.98 (`missing_const_for_thread_local`,
+  `needless_question_mark` fixes).
+
+### Removed
+
+- Duplicate changelog (`docs/CHANGELOG.md` — identical copy of the root file).
+- Development-only reports from the repository root (moved to
+  `docs/development/`).
+
 ## [0.1.0] — 2026-08-22
 
 ### Added

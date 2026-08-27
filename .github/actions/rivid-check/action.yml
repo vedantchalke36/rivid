@@ -1,0 +1,59 @@
+name: 'Rivid Identifier Check'
+description: >
+  Audit schemas, migrations and ORM models for identifier inconsistencies
+  (UUID-as-text, FK/PK mismatches, primary-key drift) using `rivid check`.
+  Findings appear as inline PR annotations.
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to scan (default: repository root)'
+    required: false
+    default: '.'
+  config:
+    description: 'Path to a .rivid.yml policy file to use'
+    required: false
+    default: ''
+  strict:
+    description: 'Treat warnings as failures (exit 1)'
+    required: false
+    default: 'false'
+  rivid-version:
+    description: '@rivid/core version to install (default: latest)'
+    required: false
+    default: 'latest'
+
+outputs:
+  report:
+    description: 'Machine-readable JSON report'
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install rivid CLI
+      shell: bash
+      run: npm install --no-save --ignore-scripts "@rivid/core@${{ inputs.rivid-version }}"
+
+    - name: Apply policy file
+      shell: bash
+      if: ${{ inputs.config != '' }}
+      run: cp "${{ inputs.config }}" "$(dirname '${{ inputs.path }}')/.rivid.yml"
+
+    - name: Run rivid check
+      id: check
+      shell: bash
+      env:
+        GITHUB_ACTIONS: 'true'
+      run: |
+        ARGS=("${{ inputs.path }}" --json)
+        if [ "${{ inputs.strict }}" = "true" ]; then ARGS+=(--strict); fi
+        npx rivid check "${ARGS[@]}" > rivid-check-report.json || EXIT=$?
+        cat rivid-check-report.json
+        # Human summary + annotations on the normal output stream
+        npx rivid check "${{ inputs.path }}" $([ "${{ inputs.strict }}" = "true" ] && echo --strict) || true
+        echo "report=$(pwd)/rivid-check-report.json" >> "$GITHUB_OUTPUT"
+        exit $EXIT

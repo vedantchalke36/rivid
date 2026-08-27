@@ -18,10 +18,10 @@ use napi_derive::napi;
 
 use rivid_core as core;
 
-use napi::{Env, JsString, NapiRaw, NapiValue};
+use napi::{Env, JsString, NapiValue};
 
 /// Encodes `value` into a fresh JS string without any intermediate heap
-/// allocation on the Rust side: 26 bytes are Crockford-encoded onto the
+/// allocation on the Rust side: N bytes are Crockford-encoded onto the
 /// stack and handed to V8 as a one-byte (Latin1) string.
 ///
 /// SAFETY contract of the call site: `buf` must live until the N-API call
@@ -30,10 +30,28 @@ use napi::{Env, JsString, NapiRaw, NapiValue};
 fn js_string_latin1_26(env: Env, buf: &[u8; 26]) -> Result<JsString> {
     unsafe {
         let mut js: napi::sys::napi_value = std::ptr::null_mut();
-        napi::check_status!(
-            napi::sys::napi_create_string_latin1(env.raw(), buf.as_ptr().cast(), 26, &mut js)
-        )?;
-        Ok(JsString::from_raw(env.raw(), js)?)
+        napi::check_status!(napi::sys::napi_create_string_latin1(
+            env.raw(),
+            buf.as_ptr().cast(),
+            26,
+            &mut js
+        ))?;
+        JsString::from_raw(env.raw(), js)
+    }
+}
+
+/// Generic Latin1 JS string creation for a fixed-size byte slice.
+#[inline]
+fn js_string_latin1<const N: usize>(env: Env, buf: &[u8; N]) -> Result<JsString> {
+    unsafe {
+        let mut js: napi::sys::napi_value = std::ptr::null_mut();
+        napi::check_status!(napi::sys::napi_create_string_latin1(
+            env.raw(),
+            buf.as_ptr().cast(),
+            N,
+            &mut js
+        ))?;
+        JsString::from_raw(env.raw(), js)
     }
 }
 
@@ -177,8 +195,6 @@ pub fn generate_many(env: Env, count: i64) -> Result<napi::JsObject> {
     let mut arr = env.create_array_with_length(count)?;
     let ts = core::now_ms();
     for i in 0..count {
-        // Two secure draws per ID — same RNG pattern as before; the win is
-        // skipping the intermediate Vec<String> entirely.
         let block = core::batch::ulid_block_secure(ts);
         let ascii = core::crockford::encode_value(u128::from_be_bytes(block));
         let s = env.create_string_latin1(&ascii)?;
@@ -291,9 +307,23 @@ pub fn decode_many(ids: Vec<String>) -> Result<Uint8Array> {
 
 /// Encodes exactly 16 bytes (canonical big-endian ID layout) as a
 /// 26-character ULID string.
+///
+/// Optimized path: reads the u128 directly from the caller's buffer,
+/// encodes to a stack-allocated [u8; 26], and exports as a Latin1 JS
+/// string — avoiding the intermediate Rust `String` heap allocation.
 #[napi]
-pub fn encode(bytes: Uint8Array) -> Result<String> {
-    core::ulid::encode(&bytes).napi()
+pub fn encode(env: Env, bytes: Uint8Array) -> Result<JsString> {
+    let slice: &[u8] = bytes.as_ref();
+    if slice.len() != 16 {
+        return Err(to_napi(core::Error::InvalidLength {
+            expected: 16,
+            got: slice.len(),
+        }));
+    }
+    // SAFETY: slice.len() == 16 checked above.
+    let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
+    let buf = core::crockford::encode_value(value);
+    js_string_latin1_26(env, &buf)
 }
 
 /// Compares two ULIDs by their full 128-bit value.
@@ -356,16 +386,17 @@ pub fn decode_base64_url(value: String) -> Result<Uint8Array> {
 
 /// Crockford Base32 encode of exactly 16 bytes (the ULID encoding rule).
 #[napi]
-pub fn encode_crockford(bytes: Uint8Array) -> Result<String> {
-    if bytes.len() != 16 {
+pub fn encode_crockford(env: Env, bytes: Uint8Array) -> Result<JsString> {
+    let slice: &[u8] = bytes.as_ref();
+    if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
             expected: 16,
-            got: bytes.len(),
+            got: slice.len(),
         }));
     }
-    let mut arr = [0u8; 16];
-    arr.copy_from_slice(&bytes);
-    Ok(core::crockford::encode_string(u128::from_be_bytes(arr)))
+    let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
+    let buf = core::crockford::encode_value(value);
+    js_string_latin1_26(env, &buf)
 }
 
 /// Crockford Base32 decode of exactly 26 characters (case-insensitive).
@@ -379,16 +410,17 @@ pub fn decode_crockford(value: String) -> Result<Uint8Array> {
 /// ordered like the underlying 128-bit value. Project-specific extension —
 /// NOT standard ULID.
 #[napi]
-pub fn encode_sortable(bytes: Uint8Array) -> Result<String> {
-    if bytes.len() != 16 {
+pub fn encode_sortable(env: Env, bytes: Uint8Array) -> Result<JsString> {
+    let slice: &[u8] = bytes.as_ref();
+    if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
             expected: 16,
-            got: bytes.len(),
+            got: slice.len(),
         }));
     }
-    let mut arr = [0u8; 16];
-    arr.copy_from_slice(&bytes);
-    Ok(core::sortable::encode_string(u128::from_be_bytes(arr)))
+    let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
+    let buf = core::sortable::encode_value(value);
+    js_string_latin1(env, &buf)
 }
 
 /// Decode a Fast ULID Sortable string back to 16 bytes.
@@ -426,8 +458,17 @@ pub fn ulid_to_bytes(id: String) -> Result<Uint8Array> {
 /// Converts exactly 16 big-endian bytes to the canonical ULID string.
 /// Equivalent to `encode()`.
 #[napi]
-pub fn bytes_to_ulid(bytes: Uint8Array) -> Result<String> {
-    core::ulid::encode(&bytes).napi()
+pub fn bytes_to_ulid(env: Env, bytes: Uint8Array) -> Result<JsString> {
+    let slice: &[u8] = bytes.as_ref();
+    if slice.len() != 16 {
+        return Err(to_napi(core::Error::InvalidLength {
+            expected: 16,
+            got: slice.len(),
+        }));
+    }
+    let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
+    let buf = core::crockford::encode_value(value);
+    js_string_latin1_26(env, &buf)
 }
 
 // ---------------------------------------------------------------------------

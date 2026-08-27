@@ -1,8 +1,8 @@
 {
- "date": "2026-08-23",
- "commit": "no-git",
+ "date": "2026-08-26",
+ "commit": "a39511cf3c5e2c62d4e3cf044c1a646f63fd9ea8",
  "os": "linux x64",
- "kernel": "6.12.101+deb13-amd64",
+ "kernel": "6.12.105+deb13-amd64",
  "cpu": "Intel(R) Core(TM) i5-10210U CPU @ 1.60GHz",
  "cores_logical": 8,
  "memory_gb": 15,
@@ -13,6 +13,6 @@
   "go": "go version go1.24.5 linux/amd64",
   "java": "21.0.12.1 (javac 21.0.12.1)"
  },
- "quick": false,
+ "quick": true,
  "failures": []
 }

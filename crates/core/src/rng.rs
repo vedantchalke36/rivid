@@ -28,7 +28,7 @@ struct EntropyPool {
 }
 
 thread_local! {
-    static POOL: RefCell<EntropyPool> = RefCell::new(EntropyPool { idx: 32, words: [0; 32] });
+    static POOL: RefCell<EntropyPool> = const { RefCell::new(EntropyPool { idx: 32, words: [0; 32] }) };
 }
 
 /// Draws 80 bits of randomness (the ULID random component).
