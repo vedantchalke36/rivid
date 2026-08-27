@@ -57,5 +57,9 @@
   "scripts": {
     "build": "node ../../scripts/build-ts-package.mjs",
     "test": "node --import tsx --test test/*.test.mts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

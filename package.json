@@ -13,6 +13,10 @@
     "type": "git",
     "url": "git+https://github.com/vedantchalke36/rivid.git"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bugs": {
     "url": "https://github.com/vedantchalke36/rivid/issues"
   },
