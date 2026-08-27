@@ -1,9 +1,17 @@
-# rivid
+# Rivid
 
 **[![npm](https://img.shields.io/npm/v/@rivid/core)](https://www.npmjs.com/package/@rivid/core)**
 [![CI](https://github.com/vedantchalke36/rivid/actions/workflows/ci.yml/badge.svg)](https://github.com/vedantchalke36/rivid/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/node/v/@rivid/core)](https://www.npmjs.com/package/@rivid/core)
+[![Node](https://img.shields.io/node/v/@rivid/core)](https://www.nnpmjs.com/package/@rivid/core)
+
+<p align="center">
+  <img src="public/Rivid.png" alt="Rivid Logo" width="400">
+</p>
+
+<p align="center">
+  <img src="public/Works with Image.png" alt="Works with" width="400">
+</p>
 
 > **ULIDs at 7 million per second.** Spec-compatible, drop-in replacement for [`ulid`](https://github.com/ulid/javascript) — with the hot paths rewritten in Rust.
 
@@ -17,7 +25,7 @@ ulid(); // "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 
 ## Contents
 
-- [Why rivid?](#why-rivid)
+- [Why Rivid?](#why-rivid)
 - [Installation](#installation)
 - [Compatibility](#compatibility)
 - [Usage](#usage)
@@ -25,17 +33,18 @@ ulid(); // "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 - [Performance](#performance)
 - [Security](#security)
 - [Databases & ORMs](#databases--orms)
+- [Documentation](#documentation)
 - [Development](#development)
 
-## Why rivid?
+## Why Rivid?
 
 Rivid generates the same ULIDs you already know — unique, lexicographically sortable, canonically encoded as a 26-character Crockford Base32 string — but moves string allocation, Base32 encoding, and randomness into a native Rust engine:
 
-- **~310× faster than `ulid` npm for single IDs — *measured*, not estimated
+- **~310× faster than `ulid` npm for single IDs** — *measured*, not estimated
 - **~2,000× faster** for bulk generation — 1 M IDs in **16 ms** instead of 40 seconds
 - **Zero setup** — prebuilt binaries for 6 platforms via npm; no Rust toolchain required
 - **Drop-in compatible** — same alphabet, same `isValid` / `encodeTime` / `decodeTime` vectors, same `seedTime` semantics
-- **Battle-tested** — 144 tests across JS + Rust, 8 fuzz targets, CI matrix over Node 18–24 × Linux/macOS/Windows
+- **Battle-tested** — 147 tests across JS + Rust, 8 fuzz targets, CI matrix over Node 18–24 × Linux/macOS/Windows
 - **More than ULIDs** — UUIDv7 (RFC 9562), monotonic mode, binary APIs, Base58/Base64URL encodings, deterministic test fixtures, and a CLI
 
 ### Why not plain `ulid` / `uuid`?
@@ -164,11 +173,11 @@ compare(a, b);                            // -1 | 0 | 1 — case-insensitive
 RFC 9562 time-ordered UUIDs from the same engine — plus lossless ULID ↔ UUID conversion:
 
 ```ts
-import { uuidv7, generateUuidV7Many, ulidToUuid, uuidToUlid } from "@rivid/core";
+import { uuidv7, generateUuidV7Many, toUuid, fromUuid } from "@rivid/core";
 
 uuidv7();                    // "01942e73-2a1c-7e3b-8f2a-..."
 generateUuidV7Many(100_000); // bulk, same amortization
-ulidToUuid("01ARZ3NDEKTSV4RRFFQ69G5FAV");
+toUuid("01ARZ3NDEKTSV4RRFFQ69G5FAV");
 // "01563E3A-B5D3-D676-4C61-EFB99302BD5B"
 ```
 
@@ -257,6 +266,24 @@ Engineering note: a Rust-side sort was prototyped, measured **60× slower** than
 
 </details>
 
+<details>
+<summary><strong>PostgreSQL storage representation benchmarks</strong></summary>
+
+Benchmarked against PostgreSQL 16.4 with 10M rows:
+
+| Representation | rows/sec | Storage (10M) | Point Lookup avg |
+|---------------|---------:|--------------:|----------------:|
+| ULID as native uuid | 117,451 | 1,226 MB | 331 µs |
+| ULID as BYTEA | 101,095 | 1,420 MB | 284 µs |
+| UUIDv7 as native uuid | 93,193 | 1,222 MB | 353 µs |
+| ULID as VARCHAR(26) | 75,936 | 1,651 MB | 412 µs |
+| UUIDv7 as CHAR(36) | 74,870 | 1,869 MB | 364 µs |
+| ULID as CHAR(26) | 72,969 | 1,647 MB | 368 µs |
+
+**Key finding**: ULID and UUID share the same 128-bit binary layout. Storing a ULID as native `uuid` uses **16 bytes** (same as UUID), eliminating the 34.8% storage penalty of CHAR(26).
+
+</details>
+
 ## Security
 
 | Mode | RNG | Intended use |
@@ -267,7 +294,7 @@ Engineering note: a Rust-side sort was prototyped, measured **60× slower** than
 - Monotonic exhaustion waits for the next millisecond instead of throwing (reference lib throws).
 - All decoders are total: malformed input produces errors, never panics.
 - Property `decode(encode(x)) == x` holds for every codec — enforced by fuzzing (~40 M execs across 8 targets).
-- Report vulnerabilities per [docs/SECURITY.md](docs/SECURITY.md).
+- Report vulnerabilities per [SECURITY.md](SECURITY.md).
 
 ## Databases & ORMs
 
@@ -281,7 +308,53 @@ Tested integration recipes with automated correctness suites against PostgreSQL 
 | SQLx (Rust — same engine) | [`integrations/sqlx`](integrations/sqlx) |
 | Go (`database/sql`, GORM) | [`integrations/go-databasesql`](integrations/go-databasesql) · [`integrations/go-gorm`](integrations/go-gorm) |
 
-Store as `CHAR(26)` for portable text, or `UUID` / `BYTEA(16)` when compact matters. With monotonic or batch output, `ORDER BY id` equals insertion order — free pagination cursors.
+### Recommended: Store as native `uuid`
+
+```sql
+-- Application generates ULID, converts to UUID for storage
+CREATE TABLE entities (
+    id uuid PRIMARY KEY,
+    -- ...
+);
+```
+
+```typescript
+import { ulid, toUuid, fromUuid } from '@rivid/core';
+
+// Generate and store
+const id = ulid();
+const uuid = toUuid(id);
+await db.query('INSERT INTO entities (id, ...) VALUES ($1, ...)', [uuid]);
+
+// Retrieve and convert back
+const row = await db.query('SELECT id FROM entities WHERE id = $1', [uuid]);
+const ulidString = fromUuid(row.id);
+```
+
+This provides:
+- **16-byte storage** (same as native UUID)
+- **Fastest insert performance** (117K rows/sec at 10M rows)
+- **Zero-cost conversion** between ULID string and UUID
+- **Native PostgreSQL UUID type** benefits
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [IDENTIFIER_MATRIX.md](IDENTIFIER_MATRIX.md) | Identifier selection guide — which ID to use when |
+| [DATABASE.md](DATABASE.md) | Database representation guide — storage, performance, migration |
+| [POSTGRES.md](POSTGRES.md) | PostgreSQL-specific guidance — schema, indexes, partitioning |
+| [ORM.md](ORM.md) | ORM integration architecture — Drizzle, Prisma, SQLx, SQLAlchemy, GORM |
+| [MICROSERVICES.md](MICROSERVICES.md) | Microservices identifier patterns |
+| [EVENTS.md](EVENTS.md) | Event-driven architecture guide |
+| [QUEUES.md](QUEUES.md) | Queue integration patterns — Kafka, NATS, RabbitMQ, SQS |
+| [CACHING.md](CACHING.md) | Cache key design and invalidation patterns |
+| [IDEMPOTENCY.md](IDEMPOTENCY.md) | Idempotency key implementation |
+| [OUTBOX_INBOX.md](OUTBOX_INBOX.md) | Transactional outbox pattern |
+| [SECURITY.md](SECURITY.md) | Security guide — threat model, RNG, timing attacks |
+| [BENCHMARK_METHODOLOGY.md](BENCHMARK_METHODOLOGY.md) | Benchmark measurement methodology |
+| [PERFORMANCE_OPTIMIZATION_REPORT.md](PERFORMANCE_OPTIMIZATION_REPORT.md) | Performance optimization before/after results |
+| [PERFORMANCE_BASELINE.md](PERFORMANCE_BASELINE.md) | Performance baseline with variance analysis |
 
 ## Development
 
@@ -290,9 +363,9 @@ git clone https://github.com/vedantchalke36/rivid && cd rivid
 npm install
 npx napi build --platform        # debug native build
 npm test                         # 87 JS tests
-cargo test -p rivid-core         # 57 Rust tests
+cargo test -p rivid-core         # 60 Rust tests
 npm run lint                     # type check
-npm run bench --quick               # benchmark smoke
+npm run bench --quick            # benchmark smoke
 ./bench.sh                       # cross-language suite
 ```
 
