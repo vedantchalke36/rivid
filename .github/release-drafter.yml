@@ -1,0 +1,68 @@
+name-template: 'rivid v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: 'Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: 'Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: 'Dependencies'
+    labels:
+      - 'dependencies'
+      - 'deps'
+  - title: 'Maintenance'
+    labels:
+      - 'chore'
+      - 'maintenance'
+      - 'ci'
+      - 'refactor'
+  - title: 'Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+no-changes-template: 'No changes.'
+
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'dependencies'
+      - 'chore'
+      - 'maintenance'
+  default: patch
+
+autolabeler:
+  - label: 'feature'
+    title: ['/^feat/i']
+  - label: 'fix'
+    title: ['/^fix/i']
+  - label: 'chore'
+    title: ['/^chore/i']
+  - label: 'documentation'
+    title: ['/^docs?/i']
+  - label: 'dependencies'
+    title: ['/^(build|deps)/i']
+    branch:
+      - '/^dependabot/**/'
+  - label: 'ci'
+    title: ['/^ci/i']
+    changed-files:
+      - any-glob-to-any-file: '.github/**'

@@ -1,0 +1,17 @@
+# Default owner for everything
+*               @vedantchalke36
+
+# Rust core
+crates/         @vedantchalke36
+src/lib.rs      @vedantchalke36
+
+# TypeScript binding
+src/*.ts        @vedantchalke36
+config/         @vedantchalke36
+
+# CI/CD
+.github/        @vedantchalke36
+
+# Documentation
+docs/           @vedantchalke36
+*.md            @vedantchalke36

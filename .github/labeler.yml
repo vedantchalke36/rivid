@@ -1,0 +1,38 @@
+area:napi:
+  - changed-files:
+    - any-glob-to-any-file: ['src/**']
+
+area:rust:
+  - changed-files:
+    - any-glob-to-any-file: ['crates/**', 'fuzz/**']
+
+area:wasm:
+  - changed-files:
+    - any-glob-to-any-file: ['crates/wasm/**', 'integrations/react-wasm/**']
+
+area:docs:
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**', '*.md']
+
+area:ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**']
+
+area:benchmarks:
+  - changed-files:
+    - any-glob-to-any-file: ['benchmarks/**', 'bench.sh']
+
+area:cli:
+  - changed-files:
+    - any-glob-to-any-file: ['cli/**']
+
+size/XS:
+  - lines: '<10'
+size/S:
+  - lines: ['10', '50']
+size/M:
+  - lines: ['50', '200']
+size/L:
+  - lines: ['200', '500']
+size/XL:
+  - lines: '>500'

@@ -23,7 +23,7 @@ jobs:
         language: [javascript-typescript, rust]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
       - if: matrix.language == 'javascript-typescript'
@@ -32,12 +32,12 @@ jobs:
           node-version: 22
       - if: matrix.language == 'javascript-typescript'
         run: npm install
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
       - if: matrix.language == 'rust'
-        uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/autobuild@v4
+      - uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
 
@@ -46,7 +46,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/dependency-review-action@v5
 
   scheduled-audit:
@@ -54,7 +54,7 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-audit
       - run: cargo audit

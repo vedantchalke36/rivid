@@ -41,7 +41,7 @@ jobs:
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           # Cross builds need the exact target triple installed.
@@ -76,11 +76,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - run: npm install
@@ -118,13 +118,13 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
       - run: npm install -g npm@latest
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - run: npm install
@@ -157,23 +157,6 @@ jobs:
           fi
         env:
           NPM_CONFIG_PROVENANCE: true
-      - name: Extract changelog section
-        if: github.event_name == 'push'
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          VERSION="$VERSION" node -e '
-            const fs = require("fs");
-            const v = process.env.VERSION;
-            const md = fs.readFileSync("CHANGELOG.md", "utf8");
-            const re = new RegExp("^##\\s\\[" + v + "\\][^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s\\[|$)");
-            const m = re.exec(md);
-            fs.writeFileSync("/tmp/body.md", (m && m[1] && m[1].trim()) || ("rivid " + v));
-          '
-      - name: Create GitHub Release
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "rivid ${GITHUB_REF_NAME#v}" --notes-file /tmp/body.md --verify-tag
 
   # Rust engine ships independently to crates.io from the same tag — OIDC trusted publishing.
   publish-crate:
@@ -187,7 +170,7 @@ jobs:
       id-token: write  # OIDC for crates.io trusted publishing
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - name: Guard tag ↔ crate version
         if: github.event_name == 'push'
@@ -204,13 +187,12 @@ jobs:
       - name: Publish
         if: github.event_name == 'push'
         run: |
-          CRATE_V="$(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[] | select(.name=="rivid-core") | .version')"
-          if curl -sf "https://crates.io/api/v1/crates/rivid-core" | \
-             jq -e ".versions[] | select(.num==\"$CRATE_V\")" >/dev/null 2>&1; then
-            echo "rivid-core@$CRATE_V already on crates.io — skipping"
+          if cargo publish -p rivid-core 2>&1 | tee /tmp/crates-out.txt; then
+            echo "rivid-core published"
+          elif grep -q "already exists" /tmp/crates-out.txt; then
+            echo "rivid-core already on crates.io — skipping"
           else
-            cargo publish -p rivid-core
+            cat /tmp/crates-out.txt; exit 1
           fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
@@ -227,7 +209,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -277,7 +259,7 @@ jobs:
       matrix:
         package: [drizzle, prisma]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -288,8 +270,16 @@ jobs:
       - run: npm pkg set version="${GITHUB_REF_NAME#v}"
         if: github.event_name == 'push'
         working-directory: packages/${{ matrix.package }}
-      - run: npm publish --access public
+      - name: Publish
         if: github.event_name == 'push'
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          PKG="@rivid/${{ matrix.package }}"
+          if npm view "$PKG@$VER" version >/dev/null 2>&1; then
+            echo "$PKG@$VER already on npm — skipping"
+          else
+            npm publish --access public
+          fi
         working-directory: packages/${{ matrix.package }}
 
   # Python wheels (PyPI) — OIDC trusted publishing (no token needed).
@@ -302,7 +292,7 @@ jobs:
       id-token: write  # OIDC for PyPI trusted publishing
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: PyO3/maturin-action@v1
         with:
@@ -391,4 +381,109 @@ jobs:
           node -e "import('@rivid/core').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
           echo "${{ matrix.pm }} @ Node $(node --version): OK"
 
+  # ── Finalize release ────────────────────────────────────────────────────────
+  # Waits for all publish jobs, then creates a rich GitHub Release body.
+  release-complete:
+    name: Finalize release
+    if: github.event_name == 'push'
+    needs: [publish, publish-crate, publish-pypi, wasm, publish-extras, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Extract changelog section
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$VERSION" node -e '
+            const fs = require("fs");
+            const v = process.env.VERSION;
+            const md = fs.readFileSync("CHANGELOG.md", "utf8");
+            const re = new RegExp("^##\\s\\[" + v + "\\][^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s\\[|$)");
+            const m = re.exec(md);
+            fs.writeFileSync("/tmp/changelog.md", (m && m[1] && m[1].trim()) || ("rivid " + v));
+          '
+      - name: Assemble release body
+        run: |
+          cat > /tmp/body.md << 'HEADER'
+          ## What's New
+          HEADER
+          cat /tmp/changelog.md >> /tmp/body.md
+          cat >> /tmp/body.md << 'TABLE'
+
+          ## Install
+
+          | Registry | Command |
+          |---|---|
+          | npm | `npm install @rivid/core` |
+          | crates.io | `cargo add rivid-core` |
+          | PyPI | `pip install rivid` |
+          | WASM | `npm install @rivid/wasm` |
+          | Drizzle ORM | `npm install @rivid/drizzle` |
+          | Prisma | `npm install @rivid/prisma` |
+
+          ## Platform Binaries
+
+          | Platform | npm Package |
+          |---|---|
+          | Linux x64 (glibc) | `@rivid/core-linux-x64-gnu` |
+          | Linux x64 (musl) | `@rivid/core-linux-x64-musl` |
+          | Linux ARM64 (glibc) | `@rivid/core-linux-arm64-gnu` |
+          | macOS ARM64 | `@rivid/core-darwin-arm64` |
+          | Windows x64 | `@rivid/core-win32-x64-msvc` |
+
+          **Published to:** npm ✓ · crates.io ✓ · PyPI ✓ · WASM ✓ · Drizzle ✓ · Prisma ✓
+          TABLE
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "rivid ${TAG#v}" --notes-file /tmp/body.md
+          else
+            gh release create "$TAG" --title "rivid ${TAG#v}" --notes-file /tmp/body.md --verify-tag
+          fi
+
+  # ── Post-release comments ──────────────────────────────────────────────────
+  # Comments on merged PRs and open issues referencing the released version.
+  post-release:
+    name: Comment on merged PRs / issues
+    if: github.event_name == 'push'
+    needs: [release-complete]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Comment on merged PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep '^v' | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found — skipping PR comments"
+            exit 0
+          fi
+          PREV_DATE=$(git log -1 --format=%aI "$PREV_TAG")
+          gh pr list --search "merged:>=$PREV_DATE is:merged" --json number \
+            --jq '.[].number' | while read -r num; do
+              gh pr comment "$num" \
+                --body "Released in [v$VERSION](https://github.com/${{ github.repository }}/releases/tag/v$VERSION)"
+            done
+      - name: Comment on issues mentioning version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh issue list --search "$VERSION in:title,body is:issue" --json number \
+            --jq '.[].number' | while read -r num; do
+              gh issue comment "$num" \
+                --body "Fixed in [v$VERSION](https://github.com/${{ github.repository }}/releases/tag/v$VERSION)"
+            done
 
