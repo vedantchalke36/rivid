@@ -124,7 +124,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24  # ships npm 11.5.1+ — required for OIDC trusted publishing
+          node-version: 22  # npm 10 — pure token path for bootstrap; bump to 24 when switching to trusted publishing
           registry-url: 'https://registry.npmjs.org'
       - uses: actions/download-artifact@v4
         with:
@@ -148,7 +148,7 @@ jobs:
             echo "::error::expected 6 platform binaries, found $count"; exit 1
           fi
       - name: Publish platform packages
-        run: npx napi prepublish -t --skip-questions
+        run: npx napi prepublish --tagstyle npm --skip-gh-release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish root package
@@ -234,7 +234,7 @@ jobs:
       - uses: taiki-e/install-action@wasm-pack
       - uses: actions/setup-node@v4
         with:
-          node-version: 24  # ships npm 11.5.1+ — required for OIDC trusted publishing
+          node-version: 22  # npm 10 — pure token path for bootstrap; bump to 24 when switching to trusted publishing
           registry-url: 'https://registry.npmjs.org'
       - run: npm install
       - name: Build wasm targets
@@ -272,7 +272,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24  # ships npm 11.5.1+ — required for OIDC trusted publishing
+          node-version: 22  # npm 10 — pure token path for bootstrap; bump to 24 when switching to trusted publishing
           registry-url: 'https://registry.npmjs.org'
       - run: npm install --silent
         working-directory: packages/${{ matrix.package }}
