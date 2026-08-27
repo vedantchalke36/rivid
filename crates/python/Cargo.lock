@@ -195,14 +195,14 @@ dependencies = [
 
 [[package]]
 name = "rivid-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rand",
 ]
 
 [[package]]
 name = "rivid-python"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "pyo3",
  "rivid-core",

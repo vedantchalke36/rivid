@@ -1,6 +1,6 @@
 {
   "name": "@rivid/drizzle",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "ULID/UUIDv7 column helpers for Drizzle ORM, powered by the rivid engine (@rivid/core)",
   "author": {
     "name": "Vedant Chalke"

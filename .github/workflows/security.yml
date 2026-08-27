@@ -27,7 +27,7 @@ jobs:
       - if: matrix.language == 'rust'
         uses: dtolnay/rust-toolchain@stable
       - if: matrix.language == 'javascript-typescript'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - if: matrix.language == 'javascript-typescript'
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
 
   scheduled-audit:
     name: Scheduled dependency audit
@@ -58,7 +58,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-audit
       - run: cargo audit
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm install

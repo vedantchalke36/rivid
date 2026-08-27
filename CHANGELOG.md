@@ -3,6 +3,27 @@
 All notable changes are documented here. The format is inspired by
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.0] — 2026-08-27
+
+### Changed
+
+- **NAPI-RS v2 → v3 migration**: native binding layer rewritten for napi 3.
+  `JsString` replaced by a `Latin1<N>` newtype that preserves the one-byte
+  V8 fast path; `JsObject` array returns now go through `Array` +
+  `coerce_to_object()`; `JsBuffer` replaced by the standalone `Buffer` type.
+  Deprecated `compat-mode` APIs (`create_array_with_length`,
+  `create_buffer_with_data`, `create_buffer`) eliminated.
+- **rand 0.9 → 0.10**: `TryRng`/`Rng`/`RngExt` trait changes applied across
+  `rng.rs`, `monotonic.rs`, `batch.rs`, `uuidv7.rs`. All 60 core tests pass.
+- **TypeScript 7.0.2**: strict check passes; CJS tsconfig migrated from
+  `moduleResolution: "Node10"` to `"Node16"` for TS7 compatibility.
+- **drizzle-orm 0.45.2** and **@types/node 26**: installed, tsc clean, 95/95
+  tests pass.
+- GitHub Actions bumped: setup-node v4→v7, setup-python v5→v7, setup-go
+  v5→v7, setup-java v4→v5, dependency-review-action v4→v5.
+- `package.json` napi `binaryName` set to `"index"` for v3 compatibility with
+  existing npm platform packages.
+
 ## [1.0.0] — 2026-08-27
 
 First release declaring the identifier API surface stable.
@@ -78,5 +99,6 @@ First release declaring the identifier API surface stable.
 - Benchmark harness (`pnpm bench`) vs `ulid`, `ulidx`, js-baseline; direct Rust `bench_direct`.
 - NAPI-RS platform builds for Linux glibc/musl x64, Linux ARM64, macOS ARM64/x64, Windows x64.
 
+[1.1.0]: https://github.com/vedantchalke36/rivid/releases/tag/v1.1.0
 [1.0.0]: https://github.com/vedantchalke36/rivid/releases/tag/v1.0.0
 [0.1.0]: https://github.com/vedantchalke36/rivid/releases/tag/v0.1.0

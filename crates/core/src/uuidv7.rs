@@ -16,7 +16,7 @@
 
 use crate::batch::validate_block_len;
 use crate::monotonic::SecureThreadRng;
-use rand::RngCore;
+use rand::Rng;
 
 /// Builds one UUIDv7 block: RFC 9562 field layout over random bytes.
 #[inline]
@@ -46,7 +46,7 @@ pub fn generate_bytes16() -> [u8; 16] {
 
 /// Draws fresh randomness through [`uuidv7_block`] for one ID.
 #[inline]
-fn generate_block<R: RngCore>(rng: &mut R, ts: u64) -> [u8; 16] {
+fn generate_block<R: Rng>(rng: &mut R, ts: u64) -> [u8; 16] {
     let hi = rng.next_u64();
     let lo = rng.next_u64();
     uuidv7_block(ts, ((hi as u128) << 64 | lo as u128).to_be_bytes())
@@ -70,7 +70,7 @@ pub fn fill_secure(buf: &mut [u8]) -> crate::Result<usize> {
 ///
 /// Returns [`crate::Error::InvalidLength`] when `buf.len()` is not a
 /// multiple of 16.
-pub fn fill_with<R: RngCore>(buf: &mut [u8], rng: &mut R) -> crate::Result<usize> {
+pub fn fill_with<R: Rng>(buf: &mut [u8], rng: &mut R) -> crate::Result<usize> {
     validate_block_len(buf.len())?;
     let ts = crate::now_ms();
     for chunk in buf.chunks_exact_mut(16) {

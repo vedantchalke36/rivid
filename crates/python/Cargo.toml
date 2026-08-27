@@ -1,6 +1,6 @@
 [package]
 name = "rivid-python"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 description = "Python bindings for the rivid ID engine — ULID/UUIDv7 generation"

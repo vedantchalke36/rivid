@@ -18,40 +18,23 @@ use napi_derive::napi;
 
 use rivid_core as core;
 
-use napi::{Env, JsString, NapiValue};
+use napi::Env;
 
-/// Encodes `value` into a fresh JS string without any intermediate heap
-/// allocation on the Rust side: N bytes are Crockford-encoded onto the
-/// stack and handed to V8 as a one-byte (Latin1) string.
-///
-/// SAFETY contract of the call site: `buf` must live until the N-API call
-/// returns (it does — V8 copies synchronously).
-#[inline]
-fn js_string_latin1_26(env: Env, buf: &[u8; 26]) -> Result<JsString> {
-    unsafe {
-        let mut js: napi::sys::napi_value = std::ptr::null_mut();
-        napi::check_status!(napi::sys::napi_create_string_latin1(
-            env.raw(),
-            buf.as_ptr().cast(),
-            26,
-            &mut js
-        ))?;
-        JsString::from_raw(env.raw(), js)
-    }
-}
+/// Fixed-length ASCII string handed to V8 through the Latin1 (one-byte)
+/// creation path, skipping UTF-8 validation. The generated TypeScript
+/// declaration is overridden to `string` via `ts_return_type`.
+pub struct Latin1<const N: usize>(pub(crate) [u8; N]);
 
-/// Generic Latin1 JS string creation for a fixed-size byte slice.
-#[inline]
-fn js_string_latin1<const N: usize>(env: Env, buf: &[u8; N]) -> Result<JsString> {
-    unsafe {
-        let mut js: napi::sys::napi_value = std::ptr::null_mut();
+impl<const N: usize> ToNapiValue for Latin1<N> {
+    unsafe fn to_napi_value(env: napi::sys::napi_env, val: Self) -> Result<napi::sys::napi_value> {
+        let mut ptr = std::ptr::null_mut();
         napi::check_status!(napi::sys::napi_create_string_latin1(
-            env.raw(),
-            buf.as_ptr().cast(),
-            N,
-            &mut js
+            env,
+            val.0.as_ptr().cast(),
+            N as isize,
+            &mut ptr
         ))?;
-        JsString::from_raw(env.raw(), js)
+        Ok(ptr)
     }
 }
 
@@ -134,8 +117,8 @@ fn lock_recover<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 ///
 /// An optional explicit millisecond timestamp may be passed (reference
 /// `ulid(seedTime)` parity).
-#[napi]
-pub fn ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn ulid(timestamp_ms: Option<f64>) -> Result<Latin1<26>> {
     // No-arg fast path: skip Option plumbing entirely.
     let ts = match timestamp_ms {
         None => core::now_ms(),
@@ -150,8 +133,7 @@ pub fn ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
             format!("timestamp {ts} exceeds ULID max {}", core::TIME_MAX),
         ));
     }
-    let buf = encode_stack(ts, core::rng::random_80());
-    js_string_latin1_26(env, &buf)
+    Ok(Latin1(encode_stack(ts, core::rng::random_80())))
 }
 
 /// Generate a monotonic ULID: strictly increasing across successive calls
@@ -159,8 +141,8 @@ pub fn ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
 ///
 /// State is process-global and thread-safe; for maximum throughput in
 /// multi-threaded pipelines prefer per-thread `UlidGenerator` instances.
-#[napi]
-pub fn monotonic_ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn monotonic_ulid(timestamp_ms: Option<f64>) -> Result<Latin1<26>> {
     static STATE: OnceLock<Mutex<core::monotonic::MonotonicState>> = OnceLock::new();
     let state = STATE.get_or_init(|| Mutex::new(core::monotonic::MonotonicState::new()));
     let mut guard = match state.lock() {
@@ -174,7 +156,7 @@ pub fn monotonic_ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
     // Monotonic output is already canonical; reuse the zero-alloc encoder.
     let mut buf = [0u8; 26];
     buf.copy_from_slice(value.as_bytes());
-    js_string_latin1_26(env, &buf)
+    Ok(Latin1(buf))
 }
 
 /// Generate `count` ULID strings in one call.
@@ -187,20 +169,20 @@ pub fn monotonic_ulid(env: Env, timestamp_ms: Option<f64>) -> Result<JsString> {
 /// (Returns the raw N-API array object; the generated declaration is patched
 /// to `string[]` by scripts/post-build.mjs.)
 #[napi]
-pub fn generate_many(env: Env, count: i64) -> Result<napi::JsObject> {
+pub fn generate_many(env: Env, count: i64) -> Result<Object<'static>> {
     if !(0..=MAX_BATCH).contains(&count) {
         return Err(invalid_count(count));
     }
     let count = count as usize;
-    let mut arr = env.create_array_with_length(count)?;
     let ts = core::now_ms();
-    for i in 0..count {
+    let mut strings: Vec<String> = Vec::with_capacity(count);
+    for _ in 0..count {
         let block = core::batch::ulid_block_secure(ts);
         let ascii = core::crockford::encode_value(u128::from_be_bytes(block));
-        let s = env.create_string_latin1(&ascii)?;
-        arr.set_element(i as u32, s)?;
+        strings.push(String::from_utf8(ascii.to_vec()).unwrap());
     }
-    Ok(arr)
+    let arr = Array::from_ref_vec_string(&env, &strings)?;
+    Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
 }
 
 /// Generate `count` ULIDs packed into a single contiguous Uint8Array
@@ -220,7 +202,7 @@ pub fn generate_bytes(count: i64) -> Result<Uint8Array> {
 /// written (`length / 16`). Lets applications control allocation entirely.
 #[napi]
 pub fn generate_into(mut buffer: Uint8Array) -> Result<u32> {
-    let slice: &mut [u8] = buffer.as_mut();
+    let slice: &mut [u8] = unsafe { buffer.as_mut() };
     let n = core::batch::fill_ulid_secure(slice).napi()?;
     Ok(n as u32)
 }
@@ -275,7 +257,7 @@ pub fn decode(id: String) -> Result<Uint8Array> {
 /// invalid input.
 #[napi]
 pub fn decode_into(id: String, mut out: Uint8Array) -> Result<()> {
-    let slice: &mut [u8] = out.as_mut();
+    let slice: &mut [u8] = unsafe { out.as_mut() };
     if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
             expected: 16,
@@ -311,8 +293,8 @@ pub fn decode_many(ids: Vec<String>) -> Result<Uint8Array> {
 /// Optimized path: reads the u128 directly from the caller's buffer,
 /// encodes to a stack-allocated [u8; 26], and exports as a Latin1 JS
 /// string — avoiding the intermediate Rust `String` heap allocation.
-#[napi]
-pub fn encode(env: Env, bytes: Uint8Array) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn encode(bytes: Uint8Array) -> Result<Latin1<26>> {
     let slice: &[u8] = bytes.as_ref();
     if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
@@ -323,7 +305,7 @@ pub fn encode(env: Env, bytes: Uint8Array) -> Result<JsString> {
     // SAFETY: slice.len() == 16 checked above.
     let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
     let buf = core::crockford::encode_value(value);
-    js_string_latin1_26(env, &buf)
+    Ok(Latin1(buf))
 }
 
 /// Compares two ULIDs by their full 128-bit value.
@@ -385,8 +367,8 @@ pub fn decode_base64_url(value: String) -> Result<Uint8Array> {
 }
 
 /// Crockford Base32 encode of exactly 16 bytes (the ULID encoding rule).
-#[napi]
-pub fn encode_crockford(env: Env, bytes: Uint8Array) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn encode_crockford(bytes: Uint8Array) -> Result<Latin1<26>> {
     let slice: &[u8] = bytes.as_ref();
     if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
@@ -396,7 +378,7 @@ pub fn encode_crockford(env: Env, bytes: Uint8Array) -> Result<JsString> {
     }
     let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
     let buf = core::crockford::encode_value(value);
-    js_string_latin1_26(env, &buf)
+    Ok(Latin1(buf))
 }
 
 /// Crockford Base32 decode of exactly 26 characters (case-insensitive).
@@ -409,8 +391,8 @@ pub fn decode_crockford(value: String) -> Result<Uint8Array> {
 /// Fast ULID Sortable encoding: 22 chars, URL-safe, lexicographically
 /// ordered like the underlying 128-bit value. Project-specific extension —
 /// NOT standard ULID.
-#[napi]
-pub fn encode_sortable(env: Env, bytes: Uint8Array) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn encode_sortable(bytes: Uint8Array) -> Result<Latin1<22>> {
     let slice: &[u8] = bytes.as_ref();
     if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
@@ -420,7 +402,7 @@ pub fn encode_sortable(env: Env, bytes: Uint8Array) -> Result<JsString> {
     }
     let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
     let buf = core::sortable::encode_value(value);
-    js_string_latin1(env, &buf)
+    Ok(Latin1(buf))
 }
 
 /// Decode a Fast ULID Sortable string back to 16 bytes.
@@ -457,8 +439,8 @@ pub fn ulid_to_bytes(id: String) -> Result<Uint8Array> {
 
 /// Converts exactly 16 big-endian bytes to the canonical ULID string.
 /// Equivalent to `encode()`.
-#[napi]
-pub fn bytes_to_ulid(env: Env, bytes: Uint8Array) -> Result<JsString> {
+#[napi(ts_return_type = "string")]
+pub fn bytes_to_ulid(bytes: Uint8Array) -> Result<Latin1<26>> {
     let slice: &[u8] = bytes.as_ref();
     if slice.len() != 16 {
         return Err(to_napi(core::Error::InvalidLength {
@@ -468,7 +450,7 @@ pub fn bytes_to_ulid(env: Env, bytes: Uint8Array) -> Result<JsString> {
     }
     let value = u128::from_be_bytes(<[u8; 16]>::try_from(slice).unwrap());
     let buf = core::crockford::encode_value(value);
-    js_string_latin1_26(env, &buf)
+    Ok(Latin1(buf))
 }
 
 // ---------------------------------------------------------------------------
@@ -606,37 +588,36 @@ impl UlidGenerator {
     ///
     /// (Raw array; declaration patched to `string[]` by post-build.)
     #[napi]
-    pub fn next_many(&self, env: Env, count: i64) -> Result<napi::JsObject> {
+    pub fn next_many(&self, env: Env, count: i64) -> Result<Object<'static>> {
         if !(0..=MAX_BATCH).contains(&count) {
             return Err(invalid_count(count));
         }
         let count = count as usize;
-        let mut arr = env.create_array_with_length(count)?;
         let ts = core::now_ms();
+        let mut strings: Vec<String> = Vec::with_capacity(count);
         match &self.det {
             Some(det) => {
                 let mut rng = lock_recover(det);
-                for i in 0..count {
+                for _ in 0..count {
                     let hi = rng.draw_u64();
                     let lo = rng.draw_u64();
                     let ascii = core::crockford::encode_value(u128::from_be_bytes(
                         core::batch::ulid_block(ts, hi, lo),
                     ));
-                    let s = env.create_string_latin1(&ascii)?;
-                    arr.set_element(i as u32, s)?;
+                    strings.push(String::from_utf8(ascii.to_vec()).unwrap());
                 }
             }
             None => {
-                for i in 0..count {
+                for _ in 0..count {
                     let ascii = core::crockford::encode_value(u128::from_be_bytes(
                         core::batch::ulid_block_secure(ts),
                     ));
-                    let s = env.create_string_latin1(&ascii)?;
-                    arr.set_element(i as u32, s)?;
+                    strings.push(String::from_utf8(ascii.to_vec()).unwrap());
                 }
             }
         }
-        Ok(arr)
+        let arr = Array::from_ref_vec_string(&env, &strings)?;
+        Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
     }
 
     /// Generates `count` monotonic ULIDs with this generator's state in one
@@ -646,32 +627,31 @@ impl UlidGenerator {
     ///
     /// (Raw array; declaration patched to `string[]` by post-build.)
     #[napi]
-    pub fn monotonic_many(&self, env: Env, count: i64) -> Result<napi::JsObject> {
+    pub fn monotonic_many(&self, env: Env, count: i64) -> Result<Object<'static>> {
         if !(0..=MAX_BATCH).contains(&count) {
             return Err(invalid_count(count));
         }
         let count = count as usize;
-        let mut arr = env.create_array_with_length(count)?;
+        let mut strings: Vec<String> = Vec::with_capacity(count);
         match &self.det {
             Some(det) => {
                 let mut mono = lock_recover(&self.mono);
                 let mut rng = lock_recover(det);
-                for i in 0..count {
+                for _ in 0..count {
                     let s_str = mono.next_deterministic(&mut rng);
-                    let s = env.create_string_latin1(s_str.as_bytes())?;
-                    arr.set_element(i as u32, s)?;
+                    strings.push(s_str.to_string());
                 }
             }
             None => {
                 let mut mono = lock_recover(&self.mono);
-                for i in 0..count {
+                for _ in 0..count {
                     let s_str = mono.next_secure();
-                    let s = env.create_string_latin1(s_str.as_bytes())?;
-                    arr.set_element(i as u32, s)?;
+                    strings.push(s_str.to_string());
                 }
             }
         }
-        Ok(arr)
+        let arr = Array::from_ref_vec_string(&env, &strings)?;
+        Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
     }
 }
 
@@ -722,40 +702,34 @@ pub fn ret_u8a_16() -> Uint8Array {
     Uint8Array::new(vec![0u8; 16])
 }
 
-/// Boundary probe B: napi_create_external_buffer via create_buffer_with_data.
+/// Boundary probe B: napi_create_external_buffer via Buffer.
 #[napi]
-pub fn ret_buf_16(env: Env) -> Result<napi::JsBuffer> {
-    Ok(env.create_buffer_with_data(vec![0u8; 16])?.into_raw())
+pub fn ret_buf_16() -> Buffer {
+    Buffer::from(vec![0u8; 16])
 }
 
 /// Boundary probe C: uninitialized napi_create_buffer (Node pooled path).
 #[napi]
-pub fn ret_buf_uninit_16(env: Env) -> Result<napi::JsBuffer> {
-    let mut b = env.create_buffer(16)?;
-    b.as_mut().fill(0);
-    Ok(b.into_raw())
+pub fn ret_buf_uninit_16() -> Buffer {
+    Buffer::from(vec![0u8; 16])
 }
 
 /// Probe G1: array built by pushing UTF-8 strings (mirrors old generateMany).
 #[napi]
-pub fn gen_arr_utf8_push(env: Env, count: u32) -> Result<napi::JsObject> {
-    let mut arr = env.create_array_with_length(count as usize)?;
-    for i in 0..count {
-        let s = env.create_string("01ARZ3NDEKTSV4RRFFQ69G5FAV")?;
-        arr.set_element(i, s)?;
-    }
-    Ok(arr)
+pub fn gen_arr_utf8_push(env: Env, count: u32) -> Result<Object<'static>> {
+    let s = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    let strings: Vec<String> = vec![s.to_string(); count as usize];
+    let arr = Array::from_ref_vec_string(&env, &strings)?;
+    Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
 }
 
 /// Probe G2: same but latin1 (ASCII fast-path) string creation.
 #[napi]
-pub fn gen_arr_latin1_push(env: Env, count: u32) -> Result<napi::JsObject> {
-    let mut arr = env.create_array_with_length(count as usize)?;
-    for i in 0..count {
-        let s = env.create_string_latin1(b"01ARZ3NDEKTSV4RRFFQ69G5FAV")?;
-        arr.set_element(i, s)?;
-    }
-    Ok(arr)
+pub fn gen_arr_latin1_push(env: Env, count: u32) -> Result<Object<'static>> {
+    let s = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    let strings: Vec<String> = vec![s.to_string(); count as usize];
+    let arr = Array::from_ref_vec_string(&env, &strings)?;
+    Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
 }
 
 /// Package version (matches the npm release).

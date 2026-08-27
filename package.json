@@ -1,6 +1,6 @@
 {
   "name": "@rivid/core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "High-performance, spec-compatible ULID generation for Node.js and Bun, powered by a Rust core via NAPI-RS. Includes monotonic ULIDs, bulk generation, binary APIs, alternative encodings and UUIDv7.",
   "author": {
     "name": "Vedant Chalke"
@@ -62,7 +62,7 @@
     "CHANGELOG.md"
   ],
   "napi": {
-    "binaryName": "rivid-core",
+    "binaryName": "index",
     "triples": {
       "defaults": false,
       "additional": [
@@ -76,12 +76,12 @@
     }
   },
   "optionalDependencies": {
-    "@rivid/core-darwin-arm64": "1.0.0",
-    "@rivid/core-linux-arm64-gnu": "1.0.0",
-    "@rivid/core-linux-arm64-musl": "1.0.0",
-    "@rivid/core-linux-x64-gnu": "1.0.0",
-    "@rivid/core-linux-x64-musl": "1.0.0",
-    "@rivid/core-win32-x64-msvc": "1.0.0"
+    "@rivid/core-darwin-arm64": "1.1.0",
+    "@rivid/core-linux-arm64-gnu": "1.1.0",
+    "@rivid/core-linux-arm64-musl": "1.1.0",
+    "@rivid/core-linux-x64-gnu": "1.1.0",
+    "@rivid/core-linux-x64-musl": "1.1.0",
+    "@rivid/core-win32-x64-msvc": "1.1.0"
   },
   "scripts": {
     "build": "napi build --platform --release && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",
@@ -101,13 +101,13 @@
     "prepublishOnly": "napi prepublish -t --skip-questions"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.4",
-    "@types/node": "^22.20.1",
+    "@napi-rs/cli": "3.8.6",
+    "@types/node": "26.4.0",
     "@types/pg": "^8.15.4",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "0.45.2",
     "pg": "^8.16.0",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3",
+    "typescript": "7.0.2",
     "ulid": "^3.0.2",
     "ulidx": "^2.4.1"
   }

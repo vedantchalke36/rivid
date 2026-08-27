@@ -11,7 +11,7 @@
 
 use crate::crockford;
 use crate::id128::Id128;
-use rand::RngCore;
+use rand::Rng;
 
 /// Validates that a fill-buffer length is a multiple of 16.
 pub(crate) fn validate_block_len(len: usize) -> crate::Result<()> {
@@ -62,7 +62,7 @@ pub fn fill_ulid_secure(buf: &mut [u8]) -> crate::Result<usize> {
 ///
 /// Returns [`crate::Error::InvalidLength`] when `buf.len()` is not a
 /// multiple of 16.
-pub fn fill_ulid_with<R: RngCore>(buf: &mut [u8], rng: &mut R) -> crate::Result<usize> {
+pub fn fill_ulid_with<R: Rng>(buf: &mut [u8], rng: &mut R) -> crate::Result<usize> {
     let ts = crate::now_ms();
     fill_ulid_with_ts(buf, ts, rng)
 }
@@ -74,7 +74,7 @@ pub fn fill_ulid_with<R: RngCore>(buf: &mut [u8], rng: &mut R) -> crate::Result<
 ///
 /// Returns [`crate::Error::InvalidLength`] when `buf.len()` is not a
 /// multiple of 16.
-pub fn fill_ulid_with_ts<R: RngCore>(buf: &mut [u8], ts: u64, rng: &mut R) -> crate::Result<usize> {
+pub fn fill_ulid_with_ts<R: Rng>(buf: &mut [u8], ts: u64, rng: &mut R) -> crate::Result<usize> {
     validate_block_len(buf.len())?;
     for chunk in buf.chunks_exact_mut(16) {
         let hi = rng.next_u64();

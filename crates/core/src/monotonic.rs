@@ -13,23 +13,29 @@
 
 use crate::id128::Id128;
 use crate::rng::DeterministicRng;
-use rand::RngCore;
+use rand::rand_core::TryRng;
+use rand::Rng;
+use rand::RngExt;
+use std::convert::Infallible;
 
-/// Adapter exposing the secure thread-local generator through [`RngCore`] so
+/// Adapter exposing the secure thread-local generator through [`TryRng`] so
 /// secure and deterministic paths share one code path.
 pub(crate) struct SecureThreadRng;
 
-impl RngCore for SecureThreadRng {
-    fn next_u32(&mut self) -> u32 {
-        rand::rng().next_u32()
+impl TryRng for SecureThreadRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+        Ok(rand::rng().next_u32())
     }
 
-    fn next_u64(&mut self) -> u64 {
-        rand::rng().next_u64()
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+        Ok(rand::rng().next_u64())
     }
 
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        rand::rng().fill_bytes(dest);
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Infallible> {
+        rand::rng().fill(dest);
+        Ok(())
     }
 }
 
@@ -79,13 +85,13 @@ impl MonotonicState {
     }
 
     #[inline]
-    fn next_with<R: RngCore>(&mut self, now: u64, rng: &mut R) -> String {
+    fn next_with<R: Rng>(&mut self, now: u64, rng: &mut R) -> String {
         let (ms, rand) = self.advance(now, rng);
         crate::crockford::encode_string(Id128::from_parts(ms, rand).as_u128())
     }
 
     #[inline]
-    fn advance<R: RngCore>(&mut self, now: u64, rng: &mut R) -> (u64, u128) {
+    fn advance<R: Rng>(&mut self, now: u64, rng: &mut R) -> (u64, u128) {
         if now > self.last_ms {
             // New millisecond: fresh randomness.
             self.last_ms = now;
@@ -111,7 +117,7 @@ impl Default for MonotonicState {
 }
 
 #[inline]
-fn draw_80<R: RngCore>(rng: &mut R) -> u128 {
+fn draw_80<R: Rng>(rng: &mut R) -> u128 {
     (((rng.next_u64() as u128) << 64) | rng.next_u64() as u128) & Id128::RANDOM_MASK
 }
 

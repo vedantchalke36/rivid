@@ -18,8 +18,10 @@
 //! named test-mode APIs (see `UlidGenerator`'s `seed` option). It can never
 //! be selected accidentally by production code paths.
 
-use rand::RngCore;
+use rand::rand_core::TryRng;
+use rand::RngExt;
 use std::cell::RefCell;
+use std::convert::Infallible;
 
 /// Amortises CSPRNG work: one ChaCha12 fill serves 32 ULID randomness draws.
 struct EntropyPool {
@@ -45,7 +47,7 @@ pub fn random_80() -> u128 {
             // view — same alignment, no padding possible for a primitive array.
             let bytes: &mut [u8] =
                 unsafe { std::slice::from_raw_parts_mut(p.words.as_mut_ptr().cast(), 512) };
-            rand::rng().fill_bytes(bytes);
+            rand::rng().fill(bytes);
             p.idx = 0;
         }
         let v = p.words[p.idx];
@@ -58,7 +60,7 @@ pub fn random_80() -> u128 {
 /// generator (one call amortizes reseeding across the whole batch).
 #[inline]
 pub fn fill_secure(buf: &mut [u8]) {
-    rand::rng().fill_bytes(buf);
+    rand::rng().fill(buf);
 }
 
 /// Deterministic Xoshiro256\*\* generator for tests and reproducible fixtures.
@@ -92,7 +94,52 @@ impl DeterministicRng {
     /// Inherent wrapper so downstream crates don't need `rand`.
     #[inline]
     pub fn draw_u64(&mut self) -> u64 {
-        RngCore::next_u64(self)
+        self.next_xoshiro()
+    }
+
+    #[inline]
+    fn next_xoshiro(&mut self) -> u64 {
+        // xoshiro256**
+        let s = &mut self.state;
+        let result = s[1].wrapping_mul(5).rotate_left(7).wrapping_mul(9);
+        let t = s[1] << 17;
+        s[2] ^= s[0];
+        s[3] ^= s[1];
+        s[1] ^= s[2];
+        s[0] ^= s[3];
+        s[2] ^= t;
+        s[3] = s[3].rotate_left(45);
+        result
+    }
+
+    fn fill_from_xoshiro(&mut self, dest: &mut [u8]) {
+        // Fill 8 bytes at a time; simple and correct for our buffer sizes.
+        let mut chunks = dest.chunks_exact_mut(8);
+        for chunk in &mut chunks {
+            chunk.copy_from_slice(&self.next_xoshiro().to_le_bytes());
+        }
+        let rem = chunks.into_remainder();
+        if !rem.is_empty() {
+            let bytes = self.next_xoshiro().to_le_bytes();
+            rem.copy_from_slice(&bytes[..rem.len()]);
+        }
+    }
+}
+
+impl TryRng for DeterministicRng {
+    type Error = Infallible;
+
+    fn try_next_u32(&mut self) -> Result<u32, Infallible> {
+        Ok((self.next_xoshiro() >> 32) as u32)
+    }
+
+    fn try_next_u64(&mut self) -> Result<u64, Infallible> {
+        Ok(self.next_xoshiro())
+    }
+
+    fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Infallible> {
+        self.fill_from_xoshiro(dst);
+        Ok(())
     }
 }
 
@@ -110,42 +157,10 @@ impl SplitMix64 {
     }
 }
 
-impl RngCore for DeterministicRng {
-    fn next_u32(&mut self) -> u32 {
-        (self.next_u64() >> 32) as u32
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        // xoshiro256**
-        let s = &mut self.state;
-        let result = s[1].wrapping_mul(5).rotate_left(7).wrapping_mul(9);
-        let t = s[1] << 17;
-        s[2] ^= s[0];
-        s[3] ^= s[1];
-        s[1] ^= s[2];
-        s[0] ^= s[3];
-        s[2] ^= t;
-        s[3] = s[3].rotate_left(45);
-        result
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        // Fill 8 bytes at a time; simple and correct for our buffer sizes.
-        let mut chunks = dest.chunks_exact_mut(8);
-        for chunk in &mut chunks {
-            chunk.copy_from_slice(&self.next_u64().to_le_bytes());
-        }
-        let rem = chunks.into_remainder();
-        if !rem.is_empty() {
-            let bytes = self.next_u64().to_le_bytes();
-            rem.copy_from_slice(&bytes[..rem.len()]);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::Rng;
 
     #[test]
     fn deterministic_same_seed_same_sequence() {
