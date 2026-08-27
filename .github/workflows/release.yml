@@ -55,15 +55,12 @@ jobs:
       - name: Install musl toolchain
         if: matrix.musl
         run: |
-          sudo apt-get update
+          sudo apt-get update && sudo apt-get install -y musl-tools
+          # On ARM runner, musl-tools provides musl-gcc for native aarch64.
+          # Create the triple-named symlink cargo expects for cross-target.
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-musl
-          elif [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
-            sudo apt-get install -y musl-tools
+            sudo ln -sf /usr/bin/musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
           fi
-      - name: Set cross-linker for musl
-        if: matrix.musl && matrix.target == 'aarch64-unknown-linux-musl'
-        run: echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
