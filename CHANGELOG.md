@@ -78,4 +78,5 @@ First release declaring the identifier API surface stable.
 - Benchmark harness (`pnpm bench`) vs `ulid`, `ulidx`, js-baseline; direct Rust `bench_direct`.
 - NAPI-RS platform builds for Linux glibc/musl x64, Linux ARM64, macOS ARM64/x64, Windows x64.
 
+[1.0.0]: https://github.com/vedantchalke36/rivid/releases/tag/v1.0.0
 [0.1.0]: https://github.com/vedantchalke36/rivid/releases/tag/v0.1.0

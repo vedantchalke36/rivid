@@ -1,6 +1,6 @@
 {
   "name": "@rivid/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "High-performance, spec-compatible ULID generation for Node.js and Bun, powered by a Rust core via NAPI-RS. Includes monotonic ULIDs, bulk generation, binary APIs, alternative encodings and UUIDv7.",
   "author": {
     "name": "Vedant Chalke"
@@ -76,12 +76,12 @@
     }
   },
   "optionalDependencies": {
-    "@rivid/core-darwin-arm64": "0.1.0",
-    "@rivid/core-linux-arm64-gnu": "0.1.0",
-    "@rivid/core-linux-arm64-musl": "0.1.0",
-    "@rivid/core-linux-x64-gnu": "0.1.0",
-    "@rivid/core-linux-x64-musl": "0.1.0",
-    "@rivid/core-win32-x64-msvc": "0.1.0"
+    "@rivid/core-darwin-arm64": "1.0.0",
+    "@rivid/core-linux-arm64-gnu": "1.0.0",
+    "@rivid/core-linux-arm64-musl": "1.0.0",
+    "@rivid/core-linux-x64-gnu": "1.0.0",
+    "@rivid/core-linux-x64-musl": "1.0.0",
+    "@rivid/core-win32-x64-msvc": "1.0.0"
   },
   "scripts": {
     "build": "napi build --platform --release && tsc -p config/tsconfig.esm.json && tsc -p config/tsconfig.cjs.json && node scripts/post-build.mjs",

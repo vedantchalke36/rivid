@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rivid"
-version = "0.1.0"
+version = "1.0.0"
 description = "High-performance ULID/UUIDv7 generation powered by a Rust engine — SQLAlchemy TypeDecorators included"
 authors = [{ name = "Vedant Chalke" }]
 license = { text = "MIT" }
