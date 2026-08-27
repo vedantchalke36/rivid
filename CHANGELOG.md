@@ -24,6 +24,14 @@ All notable changes are documented here. The format is inspired by
 - `package.json` napi `binaryName` set to `"index"` for v3 compatibility with
   existing npm platform packages.
 
+### Removed
+
+- **Linux ARM64 musl (`@rivid/core-linux-arm64-musl`) prebuilt binaries are no
+  longer built or published** — Ubuntu ARM runners ship no aarch64-musl cross
+  toolchain (missing `libgcc` in its sysroot) and Alpine containers cannot run
+  JS actions on ARM64 runners. Alpine ARM64 users can compile from source
+  (`npx napi build --platform --release`). glibc ARM64 coverage is unchanged.
+
 ## [1.0.0] — 2026-08-27
 
 First release declaring the identifier API surface stable.

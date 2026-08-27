@@ -73,7 +73,6 @@
         "x86_64-unknown-linux-gnu",
         "x86_64-unknown-linux-musl",
         "aarch64-unknown-linux-gnu",
-        "aarch64-unknown-linux-musl",
         "aarch64-apple-darwin",
         "x86_64-pc-windows-msvc"
       ]
@@ -82,7 +81,6 @@
   "optionalDependencies": {
     "@rivid/core-darwin-arm64": "1.1.0",
     "@rivid/core-linux-arm64-gnu": "1.1.0",
-    "@rivid/core-linux-arm64-musl": "1.1.0",
     "@rivid/core-linux-x64-gnu": "1.1.0",
     "@rivid/core-linux-x64-musl": "1.1.0",
     "@rivid/core-win32-x64-msvc": "1.1.0"

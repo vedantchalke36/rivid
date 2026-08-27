@@ -41,7 +41,7 @@ jobs:
             runner: windows-latest
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           # Cross builds need the exact target triple installed.
@@ -59,32 +59,9 @@ jobs:
       - run: npm install
       - name: Build native artifact
         run: npx napi build --platform --release --target ${{ matrix.target }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: bindings-${{ matrix.target }}
-          path: |
-            *.node
-            index.js
-            index.d.ts
-          if-no-files-found: error
-
-  # aarch64-musl has no apt cross toolchain on Ubuntu (musl-tools is
-  # native-arch only and libgcc is missing from its sysroot). Alpine on the
-  # ARM runner makes musl the native libc — no cross-compilation needed.
-  build-aarch64-musl:
-    name: Build / aarch64-unknown-linux-musl
-    runs-on: ubuntu-24.04-arm
-    container:
-      image: node:22-alpine
-    steps:
-      - run: apk add --no-cache git rust cargo gcc musl-dev
-      - uses: actions/checkout@v4
-      - run: npm install
-      - name: Build native artifact
-        run: npx napi build --platform --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: bindings-aarch64-unknown-linux-musl
           path: |
             *.node
             index.js
@@ -95,15 +72,15 @@ jobs:
   # tarball that WOULD be published, without touching the registry.
   pack-preview:
     name: Tarball preview (dry-run)
-    needs: [build, build-aarch64-musl]
+    needs: build
     if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
       - run: npm install
@@ -122,12 +99,12 @@ jobs:
         run: |
           find npm -maxdepth 2 -name '*.node' | sort
           count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
-          if [ "$count" -ne 6 ]; then
-            echo "::error::expected 6 platform binaries, found $count"; exit 1
+          if [ "$count" -ne 5 ]; then
+            echo "::error::expected 5 platform binaries, found $count"; exit 1
           fi
       - name: Pack
         run: npm pack
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pack-preview-tarball
           path: rivid-core-*.tgz
@@ -135,19 +112,19 @@ jobs:
 
   publish:
     name: Publish to npm
-    needs: [build, build-aarch64-musl]
+    needs: build
     if: >-
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
       - run: npm install -g npm@latest
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
       - run: npm install
@@ -165,8 +142,8 @@ jobs:
       - name: Platform packages contain their binaries
         run: |
           count=$(find npm -maxdepth 2 -name '*.node' | wc -l)
-          if [ "$count" -ne 6 ]; then
-            echo "::error::expected 6 platform binaries, found $count"; exit 1
+          if [ "$count" -ne 5 ]; then
+            echo "::error::expected 5 platform binaries, found $count"; exit 1
           fi
       - name: Publish platform packages
         run: npx napi prepublish --tagstyle npm --skip-gh-release
@@ -204,7 +181,7 @@ jobs:
       id-token: write  # OIDC for crates.io trusted publishing
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: Guard tag ↔ crate version
         if: github.event_name == 'push'
@@ -236,7 +213,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -279,7 +256,7 @@ jobs:
       matrix:
         package: [drizzle, prisma]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -304,7 +281,7 @@ jobs:
       id-token: write  # OIDC for PyPI trusted publishing
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: PyO3/maturin-action@v1
         with:
