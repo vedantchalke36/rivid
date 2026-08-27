@@ -1,6 +1,11 @@
 name-template: 'rivid v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
+template: |
+  ## Changes
+
+  $CHANGES
+
 categories:
   - title: 'Features'
     labels:
