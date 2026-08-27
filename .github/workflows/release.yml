@@ -148,7 +148,13 @@ jobs:
       - name: Publish platform packages
         run: npx napi prepublish --tagstyle npm
       - name: Publish root package
-        run: npm publish --provenance --access public
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          if npm view "@rivid/core@$VER" version >/dev/null 2>&1; then
+            echo "@rivid/core@$VER already on npm — skipping"
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NPM_CONFIG_PROVENANCE: true
       - name: Extract changelog section
@@ -200,7 +206,8 @@ jobs:
         run: |
           CRATE_V="$(cargo metadata --no-deps --format-version 1 \
             | jq -r '.packages[] | select(.name=="rivid-core") | .version')"
-          if cargo search rivid-core 2>/dev/null | head -1 | grep -q "rivid-core $CRATE_V"; then
+          if curl -sf "https://crates.io/api/v1/crates/rivid-core" | \
+             jq -e ".versions[] | select(.num==\"$CRATE_V\")" >/dev/null 2>&1; then
             echo "rivid-core@$CRATE_V already on crates.io — skipping"
           else
             cargo publish -p rivid-core
@@ -302,17 +309,18 @@ jobs:
           command: build
           args: --release --out dist -m crates/python/Cargo.toml
           manylinux: auto
-      - name: Publish
+      - name: Check if already on PyPI
+        id: pypi-check
         run: |
           VER="${GITHUB_REF_NAME#v}"
           if curl -sf "https://pypi.org/pypi/rivid/$VER/json" >/dev/null 2>&1; then
             echo "rivid@$VER already on PyPI — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            echo "__SKIP__=false" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-        id: pypi-check
       - uses: pypa/gh-action-pypi-publish@release/v1
-        if: steps.pypi-check.outputs.__SKIP__ != 'true'
+        if: steps.pypi-check.outputs.skip != 'true'
         with:
           packages-dir: dist
           # No password — uses OIDC trusted publisher (configure on pypi.org)
