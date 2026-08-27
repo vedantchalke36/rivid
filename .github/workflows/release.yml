@@ -91,7 +91,7 @@ jobs:
           npx tsc -p config/tsconfig.esm.json
           npx tsc -p config/tsconfig.cjs.json
           node scripts/post-build.mjs
-          npx napi create-npm-dir -t .
+          npx napi create-npm-dirs
           npx napi artifacts
       - name: Guards (tag/version + required files)
         run: bash .github/scripts/release-guards.sh
@@ -135,7 +135,7 @@ jobs:
           npx tsc -p config/tsconfig.esm.json
           npx tsc -p config/tsconfig.cjs.json
           node scripts/post-build.mjs
-          npx napi create-npm-dir -t .
+          npx napi create-npm-dirs
           npx napi artifacts
       - name: Guards (tag/version + required files)
         run: bash .github/scripts/release-guards.sh
