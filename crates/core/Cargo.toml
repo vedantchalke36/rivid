@@ -12,7 +12,7 @@ categories = ["algorithms", "encoding", "development-tools"]
 
 [dependencies]
 # Thread-local ChaCha12 CSPRNG (`rand::rng()`), seeded/reseeded from OS entropy.
-rand = { version = "0.9", features = ["std_rng"] }
+rand = { version = "0.10", features = ["std_rng"] }
 
 [[example]]
 name = "bench_direct"
