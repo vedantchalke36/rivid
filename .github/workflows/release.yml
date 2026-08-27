@@ -35,9 +35,6 @@ jobs:
             musl: true
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
-          - target: aarch64-unknown-linux-musl
-            runner: ubuntu-24.04-arm
-            musl: true
           - target: aarch64-apple-darwin
             runner: macos-14
           - target: x86_64-pc-windows-msvc
@@ -54,13 +51,7 @@ jobs:
           key: ${{ matrix.target }}
       - name: Install musl toolchain
         if: matrix.musl
-        run: |
-          sudo apt-get update && sudo apt-get install -y musl-tools
-          # On ARM runner, musl-tools provides musl-gcc for native aarch64.
-          # Create the triple-named symlink cargo expects for cross-target.
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
-            sudo ln -sf /usr/bin/musl-gcc /usr/local/bin/aarch64-linux-musl-gcc
-          fi
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -77,11 +68,34 @@ jobs:
             index.d.ts
           if-no-files-found: error
 
+  # aarch64-musl has no apt cross toolchain on Ubuntu (musl-tools is
+  # native-arch only and libgcc is missing from its sysroot). Alpine on the
+  # ARM runner makes musl the native libc — no cross-compilation needed.
+  build-aarch64-musl:
+    name: Build / aarch64-unknown-linux-musl
+    runs-on: ubuntu-24.04-arm
+    container:
+      image: node:22-alpine
+    steps:
+      - run: apk add --no-cache git rust cargo gcc musl-dev
+      - uses: actions/checkout@v4
+      - run: npm install
+      - name: Build native artifact
+        run: npx napi build --platform --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bindings-aarch64-unknown-linux-musl
+          path: |
+            *.node
+            index.js
+            index.d.ts
+          if-no-files-found: error
+
   # Dry-run mode: proves the whole packaging chain and uploads the exact
   # tarball that WOULD be published, without touching the registry.
   pack-preview:
     name: Tarball preview (dry-run)
-    needs: build
+    needs: [build, build-aarch64-musl]
     if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
     runs-on: ubuntu-latest
     steps:
@@ -121,7 +135,7 @@ jobs:
 
   publish:
     name: Publish to npm
-    needs: build
+    needs: [build, build-aarch64-musl]
     if: >-
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
