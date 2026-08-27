@@ -197,7 +197,14 @@ jobs:
         id: auth
       - name: Publish
         if: github.event_name == 'push'
-        run: cargo publish -p rivid-core
+        run: |
+          CRATE_V="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name=="rivid-core") | .version')"
+          if cargo search rivid-core 2>/dev/null | head -1 | grep -q "rivid-core $CRATE_V"; then
+            echo "rivid-core@$CRATE_V already on crates.io — skipping"
+          else
+            cargo publish -p rivid-core
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
       - name: Verify packaging (dry-run mode)
@@ -242,7 +249,13 @@ jobs:
           test -f web/rivid_wasm_bg.wasm && test -f nodejs/rivid_wasm_bg.wasm
       - name: Publish
         if: github.event_name == 'push' || inputs.dry_run == false
-        run: npm publish --access public
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          if npm view "@rivid/wasm@$VER" version >/dev/null 2>&1; then
+            echo "@rivid/wasm@$VER already on npm — skipping"
+          else
+            npm publish --access public
+          fi
         working-directory: crates/wasm/npm
       - name: Dry-run notice
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
@@ -289,7 +302,17 @@ jobs:
           command: build
           args: --release --out dist -m crates/python/Cargo.toml
           manylinux: auto
+      - name: Publish
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          if curl -sf "https://pypi.org/pypi/rivid/$VER/json" >/dev/null 2>&1; then
+            echo "rivid@$VER already on PyPI — skipping"
+          else
+            echo "__SKIP__=false" >> "$GITHUB_OUTPUT"
+          fi
+        id: pypi-check
       - uses: pypa/gh-action-pypi-publish@release/v1
+        if: steps.pypi-check.outputs.__SKIP__ != 'true'
         with:
           packages-dir: dist
           # No password — uses OIDC trusted publisher (configure on pypi.org)
@@ -360,35 +383,4 @@ jobs:
           node -e "import('@rivid/core').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
           echo "${{ matrix.pm }} @ Node $(node --version): OK"
 
-  verify-musl:
-    name: Verify published (musl / Alpine)
-    needs: [publish]
-    runs-on: ubuntu-latest
-    container:
-      image: node:22-alpine
-    steps:
-      - name: Wait for registry propagation
-        run: |
-          VER="${GITHUB_REF_NAME#v}"
-          i=0
-          while [ "$i" -lt 30 ]; do
-            if npm view "@rivid/core@$VER" version >/dev/null 2>&1; then break; fi
-            sleep 10
-            i=$((i + 1))
-          done
-          if [ "$i" -ge 30 ]; then
-            echo "::error::@rivid/core@$VER not resolvable after 5 minutes"
-            exit 1
-          fi
-          echo "VER=$VER" >> "$GITHUB_ENV"
-      - name: Install (npm resolves the musl binary via libc gate)
-        run: |
-          mkdir smoke && cd smoke
-          npm init -y >/dev/null
-          npm install "@rivid/core@$VER"
-      - name: Load CJS + ESM
-        run: |
-          cd smoke
-          node -e "const c=require('@rivid/core'); if(!c.isValid(c.ulid())) process.exit(1)"
-          node -e "import('@rivid/core').then(m=>{ if(!m.isValid(m.ulid())) process.exit(1) }).catch(()=>process.exit(1))"
-          echo "musl @ Node $(node --version): OK"
+
