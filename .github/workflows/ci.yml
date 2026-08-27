@@ -93,7 +93,7 @@ jobs:
       - name: Short fuzz run of every target
         run: |
           for t in decode_ulid decode_base58 decode_base64url decode_sortable validate roundtrips uuid_from_str batch_counts monotonic_state; do
-            cargo fuzz run "$t" -- -max_total_time=20
+            cargo +nightly fuzz run "$t" -- -max_total_time=20
           done
 
   bun-smoke:
