@@ -17,6 +17,9 @@ on:
         description: "smoke | full"
         default: "smoke"
         type: choice
+        options:
+          - full
+          - smoke
 
 concurrency:
   group: bench-${{ github.ref }}
