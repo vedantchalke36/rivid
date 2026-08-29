@@ -20,10 +20,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
-import resource
 import sys
 import time
+
+try:
+    import resource
+except ImportError:
+    resource = None
 import uuid as pyuuid
 
 VERSIONS = {}
@@ -113,7 +118,18 @@ def measure_bulk(fn, reps: int) -> dict:
 
 
 def rss_mb() -> float:
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+    if resource is not None:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+    # Windows fallback: use working set size from os module
+    try:
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetCurrentProcess()
+        mem_info = ctypes.c_size_t()
+        kernel32.GetProcessWorkingSetSize(handle, ctypes.byref(mem_info), None)
+        return mem_info.value / (1024 * 1024)
+    except Exception:
+        return 0.0
 
 
 # ── implementations under test ───────────────────────────────────────────

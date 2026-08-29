@@ -11,6 +11,8 @@
 import { spawnSync } from 'node:child_process'
 import { execSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 
 const args = new Set(process.argv.slice(2))
 const QUICK = args.has('--quick')
@@ -40,7 +42,7 @@ function commit() {
   }
 }
 
-const ROOT = new URL('../../', import.meta.url).pathname
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 
 function runBenchDirect() {
   // bench_direct runs fixed workloads; --quick is honored by reducing env.

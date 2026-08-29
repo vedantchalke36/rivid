@@ -286,7 +286,16 @@ const matrix = {
   cpu: cpuInfo,
   cores_logical: await availableParallelism(),
   memory_gb: (() => { try {
-    return Math.round(parseInt(execSync('free -g | awk \'/Mem/{print $2}\'').toString().trim(), 10))
+    if (process.platform === 'linux') {
+      return Math.round(parseInt(execSync('free -g | awk \'/Mem/{print $2}\'').toString().trim(), 10))
+    } else if (process.platform === 'darwin') {
+      return Math.round(parseInt(execSync('sysctl -n hw.memsize').toString().trim(), 10) / (1024 * 1024 * 1024))
+    } else if (process.platform === 'win32') {
+      const out = execSync('wmic OS get TotalVisibleMemorySize /value').toString()
+      const m = /TotalVisibleMemorySize=(\d+)/.exec(out)
+      return m ? Math.round(parseInt(m[1], 10) / (1024 * 1024)) : null
+    }
+    return null
   } catch { return null } })(),
   runtimes: Object.fromEntries(Object.entries(runtimes).map(([k, v]) => [k, v.version])),
   quick: QUICK,

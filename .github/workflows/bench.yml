@@ -110,3 +110,40 @@ jobs:
           path: |
             benchmarks/results/
             benchmarks/reports/
+
+  summary:
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full'))
+    name: Cross-platform summary
+    needs: full
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bench-artifacts
+          pattern: bench-*
+          merge-multiple: false
+      - name: Flatten artifacts into results directory
+        shell: bash
+        run: |
+          mkdir -p benchmarks/results
+          for d in bench-artifacts/bench-*/; do
+            tag=$(basename "$d")
+            # Copy results and reports into a per-platform directory
+            mkdir -p "benchmarks/results/$tag"
+            cp -r "$d"benchmarks/results/* "benchmarks/results/$tag/" 2>/dev/null || true
+            cp -r "$d"benchmarks/reports/* "benchmarks/results/$tag/reports/" 2>/dev/null || true
+          done
+          echo "--- Flattened layout ---"
+          find benchmarks/results -maxdepth 3 -type f | head -40
+      - name: Generate cross-platform summary
+        shell: bash
+        run: node benchmarks/runner/summary.mjs benchmarks/results
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-cross-platform-summary
+          path: benchmarks/reports/cross-platform-summary.md
