@@ -143,6 +143,9 @@ jobs:
       - name: Generate cross-platform summary
         shell: bash
         run: node benchmarks/runner/summary.mjs benchmarks/results
+      - name: Write summary to run page
+        shell: bash
+        run: cat benchmarks/reports/cross-platform-summary.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: bench-cross-platform-summary
