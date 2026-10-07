@@ -102,10 +102,10 @@
     "bench:db": "./bench.sh --db"
   },
   "devDependencies": {
-    "@napi-rs/cli": "3.8.6",
-    "@types/node": "26.4.0",
+    "@napi-rs/cli": "3.10.6",
+    "@types/node": "26.6.4",
     "@types/pg": "^8.15.4",
-    "drizzle-orm": "0.45.2",
+    "drizzle-orm": "0.45.3",
     "pg": "^8.16.0",
     "tsx": "^4.23.12",
     "typescript": "7.0.2",
