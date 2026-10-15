@@ -122,7 +122,7 @@ jobs:
         with:
           node-version: 22
       - name: Download all platform artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: bench-artifacts
           pattern: bench-*
