@@ -320,6 +320,7 @@ Full threat model, RNG architecture, and reporting policy:
 | [docs/idempotency.md](docs/idempotency.md) | Idempotency key implementation |
 | [docs/outbox-inbox.md](docs/outbox-inbox.md) | Transactional outbox pattern |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [docs/development/IDENTIFIER_ROADMAP.md](docs/development/IDENTIFIER_ROADMAP.md) | KSUID parity, TypeID, interop formats, and tooling plan |
 | [docs/development/](docs/development) | Internal engineering reports (baseline data, optimization journals) |
 
 ## Contributing
