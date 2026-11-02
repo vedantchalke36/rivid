@@ -15,9 +15,14 @@ pub enum Error {
     /// The encoded value exceeds what 128 bits (or a 48-bit ULID timestamp)
     /// can represent, e.g. a ULID string whose first char is above `7`.
     ValueTooLarge,
+    /// The encoded KSUID value exceeds 160 bits.
+    KsuidValueTooLarge,
     /// Timestamp argument is outside the representable range
     /// (`0..=2^48-1`). Stored losslessly as `u64`.
     TimestampOutOfRange(u64),
+    /// Timestamp argument is outside KSUID's 32-bit second-precision era
+    /// (2014-05-13 through 2150).
+    KsuidTimestampOutOfRange(u64),
     /// A sortable/base58/base64url input is not in canonical form.
     NonCanonical,
     /// Input is not a valid UUID string.
@@ -37,9 +42,14 @@ impl fmt::Display for Error {
                 f,
                 "encoded value exceeds 128 bits (ULID timestamp part must be <= 2^48-1)"
             ),
+            Error::KsuidValueTooLarge => write!(f, "encoded value exceeds 160 bits"),
             Error::TimestampOutOfRange(t) => write!(
                 f,
                 "timestamp {t} out of range: must be an integer between 0 and 281474976710655 (2^48 - 1)"
+            ),
+            Error::KsuidTimestampOutOfRange(t) => write!(
+                f,
+                "timestamp {t} out of range for KSUID: must be between 1400000000 and 5694967295 seconds (2014-05-13 to 2150)"
             ),
             Error::NonCanonical => write!(f, "input is not in canonical form"),
             Error::InvalidUuid => write!(f, "invalid UUID string"),

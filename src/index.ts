@@ -66,6 +66,29 @@ export { uuidv7, uuidv7Bytes, generateUuidV7Many } from './uuidv7.js'
 // with the ULID string form; see README §Naming note).
 export { decodeTime as uuidv7DecodeTime, decodeTimeFromString as uuidv7DecodeTimeFromString } from './uuidv7.js'
 
+// KSUID (160-bit, base62)
+export {
+  ksuid,
+  ksuidBytes,
+  generateKsuidMany,
+  generateKsuidBytes,
+  generateKsuidInto,
+  isValidKsuid,
+  decodeKsuidTime,
+  ksuidTime,
+  decodeKsuid,
+  encodeKsuid,
+  compareKsuid,
+  sortKsuid,
+  KSUID_EPOCH_MS,
+  KSUID_EPOCH_SECONDS,
+  KSUID_TIME_MAX_MS,
+  KSUID_BYTES,
+  KSUID_LEN,
+  MIN_KSUID,
+  MAX_KSUID,
+} from './ksuid.js'
+
 // Stateful generator
 export { UlidGenerator } from './generator.js'
 export type { UlidGeneratorOptions } from './generator.js'

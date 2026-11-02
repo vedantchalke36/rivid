@@ -14,6 +14,7 @@
     { "id": "gen.single.ulid-mono",       "category": "A", "identifier": "ulid-monotonic", "op": "generate", "mode": "string", "count": 1, "target_ms": 400 },
     { "id": "gen.single.uuidv4",          "category": "A", "identifier": "uuidv4",  "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
     { "id": "gen.single.uuidv7",          "category": "A", "identifier": "uuidv7",  "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
+    { "id": "gen.single.ksuid",           "category": "A", "identifier": "ksuid",   "op": "generate", "mode": "string",  "count": 1,      "target_ms": 400 },
     { "id": "gen.bulk.ulid.1k",           "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 1000,   "reps": 5 },
     { "id": "gen.bulk.ulid.10k",          "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 10000,  "reps": 5 },
     { "id": "gen.bulk.ulid.100k",         "category": "B", "identifier": "ulid",    "op": "generate_bulk", "mode": "string", "count": 100000, "reps": 3 },

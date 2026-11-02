@@ -11,8 +11,8 @@
 
 **High-performance, cross-language identifier infrastructure.** Rivid generates, encodes,
 validates, stores, and governs time-sortable identifiers — ULID, monotonic ULID, UUIDv7,
-raw 128-bit — from one Rust engine, with native bindings for Node.js, browsers (WASM),
-Python, Go, Java, and Rust.
+KSUID, raw 128-bit — from one Rust engine, with native bindings for Node.js, browsers
+(WASM), Python, Go, Java, and Rust.
 
 ```bash
 npm install @rivid/core
@@ -23,6 +23,9 @@ import { ulid } from "@rivid/core";
 
 ulid(); // "01ARZ3NDEKTSV4RRFFQ69G5FAV" — 26 chars, lexicographically sortable
 ```
+
+KSUID is available from the Rust core and the Node.js binding (`ksuid()`); the
+WASM and Python bindings currently expose ULID and UUIDv7.
 
 ---
 
@@ -49,14 +52,15 @@ application code down to the database column.
 
 - **Fast where it counts** — single ULIDs in ~120 ns through the Node binding (measured;
   see [Performance](#performance)), bulk binary generation at 45–63 M IDs/s
-- **Sortable by construction** — ULID/UUIDv7 embed a 48-bit millisecond timestamp; byte
-  order is time order, so B-tree inserts stay localized and `ORDER BY id` approximates
-  creation order
+- **Sortable by construction** — ULID/UUIDv7 embed a 48-bit millisecond timestamp, KSUID a
+  32-bit second timestamp; byte order is time order, so B-tree inserts stay localized and
+  `ORDER BY id` approximates creation order
 - **Drop-in compatible** — same Crockford alphabet, same `isValid`/`encodeTime`/`decodeTime`
-  vectors, same `seedTime` semantics as the reference `ulid` package
+  vectors, same `seedTime` semantics as the reference `ulid` package; KSUID matches the
+  Segment string format and reference vectors
 - **Beyond generation** — binary APIs, Base58/Base64URL/sortable encodings, ULID↔UUID
   reinterpretation, deterministic test fixtures, ORM column types, and schema governance
-- **Hardened** — 155 tests across JS and Rust, 9 fuzz targets (~40 M execs), CI matrix over
+- **Hardened** — 185 tests across JS and Rust, 9 fuzz targets (~40 M execs), CI matrix over
   Node 18–24 × Linux/macOS/Windows, fuzz-clean total decoders (malformed input throws, never
   panics)
 
@@ -67,6 +71,7 @@ application code down to the database column.
 | ULID | `ulid()` | 48-bit ms time + 80-bit random | ✅ lexicographic = chronological | Primary keys, public IDs, URLs |
 | Monotonic ULID | `monotonicUlid()` | same; increments within a ms | ✅ + strict per-process ordering | Event sourcing, write-heavy keys |
 | UUIDv7 | `uuidv7()` | RFC 9562, 48-bit ms time + 74-bit random | ✅ | Standard-facing systems, interop |
+| KSUID | `ksuid()` | 32-bit second time + 128-bit random | ✅ second precision | Segment interoperability, base62 URLs |
 | UUIDv4-style random | `ulidBytes()` subsets | 122-bit random, no timestamp | ❌ | Secrets, tokens, idempotency keys |
 | Raw 128-bit | `ulidBytes()`, `generateBytes(n)` | 16 bytes big-endian | same as source | Binary columns, wire formats |
 
@@ -110,6 +115,22 @@ At one million IDs: `generateMany` finishes in **0.28 s** where the reference lo
 **~40 s**; the binary APIs do it in **~16–20 ms** — up to ~2,000× faster for bulk *binary*
 generation (the multiplier applies to `generateBytes`/`generateInto`, not to string APIs).
 
+### KSUID (Node native binding, 2026-11-02)
+
+Measured with `npm run bench:ksuid`, same machine and NAPI release build. The reference is
+the standard `ksuid` npm package (`KSUID.randomSync().string`).
+
+| Operation | Throughput | Latency / wall time |
+|---|---:|---:|
+| `ksuid()` | 3.0 M ops/s | 335 ns |
+| `ksuid` (npm, reference) | 65 K ops/s | 15,300 ns |
+| `generateKsuidMany(100 K)` | 2.5 M IDs/s | 39 ms |
+| `generateKsuidBytes(1 M)` | 62 M IDs/s | 16 ms |
+| `generateKsuidInto(1 M)` | 82 M IDs/s | 12 ms |
+
+Single-string generation is ~46× faster than the reference; the bulk binary APIs avoid
+base62 encoding and the per-ID object/string allocations that dominate the JS package.
+
 The pure Rust core (no binding boundary) generates a single ULID in ~53 ns; the ~70 ns
 difference is the NAPI crossing. Each layer is measured separately — Rust core, native
 binding, WASM, driver, and ORM overhead are never collapsed into one number. The ORM layer
@@ -122,12 +143,14 @@ breakdown (L0 generation → L1 driver → L2 ORM) and the full cross-language m
 ### Generate
 
 ```ts
-import { ulid, monotonicUlid, uuidv7 } from "@rivid/core";
+import { ulid, monotonicUlid, uuidv7, ksuid } from "@rivid/core";
 
 ulid();                       // "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 ulid(1469918176385);          // pin timestamp — migrations/backfills
 monotonicUlid();              // strictly increasing within the process
 uuidv7();                     // "01942e73-2a1c-7e3b-8f2a-…" (RFC 9562)
+ksuid();                      // "0ujtsYcgvSTl8PAuAdqWYSMnLOv" — 27-char base62
+ksuid(1_700_000_000_999);     // pin timestamp; floors to KSUID's whole second
 ```
 
 ### Bulk
@@ -147,6 +170,7 @@ generateInto(buf);                // caller-owned allocation, no retained garbag
 import {
   ulidBytes, encode, decode, isValid, decodeTime, encodeTime,
   toUuid, fromUuid, encodeBase58, encodeBase64Url,
+  ksuid, decodeKsuid, encodeKsuid, isValidKsuid, decodeKsuidTime,
 } from "@rivid/core";
 
 const bytes = ulidBytes();                // 16 bytes, big-endian
@@ -154,6 +178,13 @@ encode(decode("01ARZ3NDEKTSV4RRFFQ69G5FAV")); // exact round trip
 isValid("01ARZ3NDEKTSV4RRFFQ69G5FAV");    // true (case-insensitive Crockford)
 decodeTime("01ARZ3NDEKTSV4RRFFQ69G5FAV"); // 1469922850259
 toUuid("01ARZ3NDEKTSV4RRFFQ69G5FAV");     // same 128 bits, hyphenated form
+
+// KSUID: 20-byte binary form, 27-char canonical string
+const ksuidId = ksuid();
+const ksuidRaw = decodeKsuid(ksuidId);
+encodeKsuid(ksuidRaw) === ksuidId;        // true
+isValidKsuid(ksuidId);                    // true
+decodeKsuidTime(ksuidId);                 // Unix milliseconds (second-aligned)
 ```
 
 ### Deterministic test fixtures

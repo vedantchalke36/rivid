@@ -48,6 +48,23 @@ try {
   /* not installed */
 }
 
+interface ReferenceKsuid {
+  readonly string: string
+  readonly raw: Buffer
+  readonly timestamp: number
+}
+interface KsuidModule {
+  randomSync(time?: number): ReferenceKsuid
+  parse(value: string): ReferenceKsuid
+}
+let refKsuid: KsuidModule | undefined
+try {
+  const mod = (await import('ksuid')) as unknown as { default: KsuidModule }
+  refKsuid = mod.default
+} catch {
+  /* not installed */
+}
+
 interface Row {
   [k: string]: number | string | boolean | undefined
 }
@@ -103,6 +120,11 @@ if (SUITE === 'all' || SUITE === 'single') {
   })())
   add('monotonicUlid()', '@rivid/core', () => fast.monotonicUlid())
   add('uuidv7()', '@rivid/core', () => fast.uuidv7())
+  add('ksuid()', '@rivid/core', () => fast.ksuid())
+
+  if (refKsuid) {
+    add('ksuid() [.string]', 'ksuid (JS)', () => refKsuid!.randomSync().string)
+  }
 
   if (refUlid) {
     add('ulid()', 'ulid (JS)', () => refUlid!.ulid())
@@ -276,6 +298,108 @@ if (SUITE === 'all' || SUITE === 'encodings') {
     ['ops/sec', (r) => Number(r.opsPerSec), fmt],
     ['ns/op', (r) => Number(r.nsPerOp), fmt],
   ])
+}
+
+// ---------------------------------------------------------------------------
+// Suite: KSUID
+// ---------------------------------------------------------------------------
+
+if (SUITE === 'all' || SUITE === 'ksuid') {
+  const sample = fast.ksuid()
+  const sampleBytes = fast.decodeKsuid(sample)
+  const other = fast.ksuid()
+
+  const rows: Row[] = []
+  const t = (label: string, library: string, fn: () => unknown) => {
+    const r = measureOps(`${library}: ${label}`, fn, { targetMs: QUICK ? 120 : 300 })
+    rows.push({ library, operation: label, opsPerSec: r.opsPerSec, nsPerOp: Math.round(r.nsPerOp) })
+  }
+
+  t('ksuid()', '@rivid/core', () => fast.ksuid())
+  t('ksuidBytes()', '@rivid/core', () => fast.ksuidBytes())
+  t('encodeKsuid(20B)', '@rivid/core', () => fast.encodeKsuid(sampleBytes))
+  t('decodeKsuid(27c)', '@rivid/core', () => fast.decodeKsuid(sample))
+  t('isValidKsuid(27c)', '@rivid/core', () => fast.isValidKsuid(sample))
+  t('decodeKsuidTime(27c)', '@rivid/core', () => fast.decodeKsuidTime(sample))
+  t('compareKsuid(a,b)', '@rivid/core', () => fast.compareKsuid(sample, other))
+
+  if (refKsuid) {
+    t('randomSync().string', 'ksuid (JS)', () => refKsuid!.randomSync().string)
+    t('parse(str).string', 'ksuid (JS)', () => refKsuid!.parse(sample).string)
+  }
+
+  tables.ksuid = rows
+  printTable(`KSUID single-call + codec (${QUICK ? 'quick mode' : 'full mode'})`, rows, [
+    ['operation', (r) => String(r.operation), (v) => String(v)],
+    ['ops/sec', (r) => Number(r.opsPerSec), fmt],
+    ['ns/op', (r) => Number(r.nsPerOp), fmt],
+  ])
+
+  const sizes = QUICK ? [1_000, 100_000] : [1_000, 100_000, 1_000_000]
+  for (const n of sizes) {
+    const bulk: Row[] = []
+    const reps = n <= 100_000 ? 5 : 3
+    const m1 = measureBulk('@rivid/core', n, reps, (c) => fast.generateKsuidMany(c).length)
+    bulk.push({
+      library: '@rivid/core',
+      method: 'generateKsuidMany(n)',
+      ms: +m1.ms.toFixed(1),
+      perSec: m1.itemsPerSec,
+      ns: Math.round(m1.nsPerItem),
+      rssMb: +m1.rssDeltaMb.toFixed(1),
+    })
+
+    const m2 = measureBulk('@rivid/core', n, reps, (c) => fast.generateKsuidBytes(c).length)
+    bulk.push({
+      library: '@rivid/core',
+      method: 'generateKsuidBytes(n)',
+      ms: +m2.ms.toFixed(1),
+      perSec: m2.itemsPerSec,
+      ns: Math.round(m2.nsPerItem),
+      rssMb: +m2.rssDeltaMb.toFixed(1),
+    })
+
+    if (!QUICK || n <= 100_000) {
+      const m3 = measureBulk('@rivid/core', n, reps, (c) => {
+        const buf = new Uint8Array(c * 20)
+        return fast.generateKsuidInto(buf)
+      })
+      bulk.push({
+        library: '@rivid/core',
+        method: 'generateKsuidInto(prealloc)',
+        ms: +m3.ms.toFixed(1),
+        perSec: m3.itemsPerSec,
+        ns: Math.round(m3.nsPerItem),
+        rssMb: +m3.rssDeltaMb.toFixed(1),
+      })
+    }
+
+    if (refKsuid && n <= 100_000) {
+      gc()
+      const rssBefore = process.memoryUsage.rss()
+      const t0 = process.hrtime.bigint()
+      for (let i = 0; i < n; i++) refKsuid.randomSync().string
+      const el = Number(process.hrtime.bigint() - t0) / 1e6
+      gc()
+      bulk.push({
+        library: 'ksuid (JS)',
+        method: 'per-ID randomSync().string loop',
+        ms: +el.toFixed(1),
+        perSec: (n * 1e9) / (el * 1e6),
+        ns: Math.round((el * 1e6) / n),
+        rssMb: +((process.memoryUsage.rss() - rssBefore) / 1048576).toFixed(1),
+      })
+    }
+
+    tables[`ksuid-bulk-${n}`] = bulk
+    printTable(`Generate ${fmt(n)} KSUIDs`, bulk, [
+      ['method', (r) => String(r.method), (v) => String(v)],
+      ['ms', (r) => Number(r.ms), (v) => String(v)],
+      ['IDs/sec', (r) => Number(r.perSec), fmt],
+      ['ns/ID', (r) => Number(r.ns), (v) => String(v)],
+      ['RSS Δ (MB)', (r) => Number(r.rssMb), (v) => String(v)],
+    ])
+  }
 }
 
 // ---------------------------------------------------------------------------

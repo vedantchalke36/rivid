@@ -9,9 +9,10 @@ envelope on laptop hardware).
 
 | Command | What it measures |
 |---|---|
-| `npm run bench` | Full: single-call, bulk (1K→10M), utils, encodings |
+| `npm run bench` | Full: single-call, bulk (1K→10M), utils, encodings, KSUID |
 | `npm run bench -- --quick` | Reduced sizes (~20 s), CI-friendly |
-| `npm run bench -- --suite=single\|bulk\|utils\|encodings` | One suite only |
+| `npm run bench -- --suite=single\|bulk\|utils\|encodings\|ksuid` | One suite only |
+| `npm run bench:ksuid` | KSUID generation + codec vs the reference `ksuid` npm package |
 | `npm run bench:rust` | Direct Rust core, no N-API (`bench_direct`) |
 | `npm run bench:startup` | Cold-start cost vs pure-JS libs |
 

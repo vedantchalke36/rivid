@@ -47,7 +47,6 @@
       "randomness_bits": 128,
       "sortable": true,
       "security": "csp_rng",
-      "optional": true,
       "note": "different epoch (2014-05-13) — never compared numerically against ULID time fields"
     },
     "nanoid": {

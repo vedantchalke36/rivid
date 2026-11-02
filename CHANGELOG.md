@@ -3,6 +3,20 @@
 All notable changes are documented here. The format is inspired by
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- **KSUID (Segment)**: 160-bit, 20-byte identifiers with a 32-bit
+  second-precision timestamp and 128-bit random payload, encoded as 27-char
+  base62. Adds `ksuid()`, `ksuidBytes()`, `generateKsuidMany()`,
+  `generateKsuidBytes()`, `generateKsuidInto()`, `isValidKsuid()`,
+  `decodeKsuidTime()`, `ksuidTime()`, `decodeKsuid()`, `encodeKsuid()`,
+  `compareKsuid()`, `sortKsuid()`, plus epoch/range constants.
+- **KSUID benchmark suite**: `npm run bench:ksuid` compares single, bulk,
+  binary, preallocated, and codec paths against the reference `ksuid` npm
+  package.
+
 ## [1.1.0] — 2026-08-27
 
 ### Changed

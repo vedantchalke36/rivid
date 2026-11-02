@@ -21,15 +21,33 @@ import {
   generateBytes,
   generateInto,
   generateMany,
+  generateKsuidBytes,
+  generateKsuidInto,
+  generateKsuidMany,
   generateUuidV7Many,
   isValid,
+  isValidKsuid,
+  ksuid,
+  ksuidBytes,
+  ksuidTime,
+  decodeKsuid,
+  decodeKsuidTime,
+  encodeKsuid,
+  compareKsuid,
+  sortKsuid,
   monotonicUlid,
   ulid,
   ulidBytes,
   ulidToUuid,
   uuidToUlid,
   uuidv7,
+  KSUID_BYTES,
+  KSUID_EPOCH_MS,
+  KSUID_LEN,
+  KSUID_TIME_MAX_MS,
+  MAX_KSUID,
   MAX_ULID,
+  MIN_KSUID,
   MIN_ULID,
   TIME_MAX,
 } from '../src/index.js'
@@ -52,10 +70,30 @@ const toUuid: string = ulidToUuid(id)
 const fromUuid: string = uuidToUlid(toUuid)
 const manyV7: string[] = generateUuidV7Many(10)
 
+// KSUID surface.
+const ksuidString: string = ksuid()
+const ksuidBulk: string[] = generateKsuidMany(10)
+const ksuidBinBulk: Uint8Array = generateKsuidBytes(10)
+const ksuidBin: Uint8Array = ksuidBytes()
+const ksuidEncoded: string = encodeKsuid(ksuidBin)
+const ksuidDecoded: Uint8Array = decodeKsuid(ksuidString)
+const ksuidValid: boolean = isValidKsuid(ksuidString)
+const ksuidMs: number = decodeKsuidTime(ksuidString)
+const ksuidBytesMs: number = ksuidTime(ksuidBin)
+const ksuidOrder: number = compareKsuid(ksuidString, ksuidString)
+const ksuidSorted: string[] = sortKsuid([ksuidString, MIN_KSUID, MAX_KSUID])
+const ksuidWritten: number = generateKsuidInto(new Uint8Array(40))
+
 // Constants are strings/number as documented.
 const minOk: string = MIN_ULID
 const maxOk: string = MAX_ULID
 const timeMaxOk: number = TIME_MAX
+const ksuidEpochOk: number = KSUID_EPOCH_MS
+const ksuidTimeMaxOk: number = KSUID_TIME_MAX_MS
+const ksuidBytesOk: number = KSUID_BYTES
+const ksuidLenOk: number = KSUID_LEN
+const ksuidMinOk: string = MIN_KSUID
+const ksuidMaxOk: string = MAX_KSUID
 
 // Generator class surface.
 declare const gen: UlidGenerator
@@ -73,6 +111,10 @@ decode(42 as unknown as null)
 encode('01ARZ3NDEKTSV4RRFFQ69G5FAV')
 // @ts-expect-error count must be a number
 generateMany('10')
+// @ts-expect-error KSUID timestamp is a number of milliseconds
+ksuid('1700000000000')
+// @ts-expect-error KSUID validator takes a string
+isValidKsuid(123)
 
 // Silence unused-var linting for pure type assertions.
 export type __Asserts = [
@@ -81,4 +123,10 @@ export type __Asserts = [
   typeof encoded, typeof round, typeof ord, typeof b58, typeof b64u,
   typeof toUuid, typeof fromUuid, typeof manyV7, typeof minOk,
   typeof maxOk, typeof timeMaxOk, typeof genNext, typeof genMono,
+  typeof ksuidString, typeof ksuidBulk, typeof ksuidBinBulk,
+  typeof ksuidBin, typeof ksuidEncoded, typeof ksuidDecoded,
+  typeof ksuidValid, typeof ksuidMs, typeof ksuidBytesMs,
+  typeof ksuidOrder, typeof ksuidSorted, typeof ksuidWritten,
+  typeof ksuidEpochOk, typeof ksuidTimeMaxOk, typeof ksuidBytesOk,
+  typeof ksuidLenOk, typeof ksuidMinOk, typeof ksuidMaxOk,
 ]

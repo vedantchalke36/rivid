@@ -66,6 +66,8 @@ const OP_MAP = {
   'ulid() [generator]': 'generate.single.ulid',
   'monotonicUlid()': 'generate.single.ulid-mono',
   'uuidv7()': 'generate.single.uuidv7',
+  'ksuid()': 'generate.single.ksuid',
+  'ksuid() [.string]': 'generate.single.ksuid',
   'encodeTime(now)': 'encode.time.ulid',
   'decodeTime(id)': 'codec.timeextract.ulid',
   'isValid(id)': 'codec.validate.ulid',
@@ -90,24 +92,33 @@ const METHOD_FROM = {
 
 const rows = []
 for (const [table, entries] of Object.entries(raw.tables)) {
+  // KSUID has a dedicated suite (`npm run bench:ksuid`) with mixed
+  // generation + codec tables; keep it out of this ULID/UUIDv7 matrix
+  // rather than mislabeling its rows. The single-call KSUID rows still map
+  // through `single` above.
+  if (table === 'ksuid' || table.startsWith('ksuid-bulk-')) continue
   const cat = table.startsWith('bulk') ? 'B' : (CAT[table] ?? '?')
   const count = table.startsWith('bulk') ? Number(table.split('-')[1]) : 1
   for (const e of entries) {
     const label = String(e.operation ?? '')
+    const library = String(e.library ?? '@rivid/core')
+    const identifier = /ksuid/i.test(label) || /ksuid/i.test(library)
+      ? 'ksuid'
+      : /uuid/i.test(label) ? 'uuidv7' : 'ulid'
     rows.push({
       timestamp: raw.env.date,
       commit: commit(),
       language: 'node',
-      package: String(e.library ?? '@rivid/core'),
+      package: library,
       package_version: '0.1.0',
       runtime_version: raw.env.node,
       category: cat,
       // bulk rows carry method; single/utils rows map through OP_MAP
       operation: isBulkLabel(table) ? (METHOD_FROM[e.method] ?? `bulk.${e.method}`) : (OP_MAP[label] ?? label),
       method: e.method,
-      identifier: /uuid/i.test(label) ? 'uuidv7' : 'ulid',
-      native: e.library === '@rivid/core',
-      secure: !/baseline/.test(String(e.library)),
+      identifier,
+      native: library === '@rivid/core',
+      secure: !/baseline/.test(library),
       count,
       ms: e.ms,
       ns_per_op: e.nsPerOp,

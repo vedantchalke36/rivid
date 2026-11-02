@@ -14,6 +14,7 @@
 //! * [`rng`] — secure (default) and deterministic (test-only) randomness.
 //! * [`batch`] — bulk generation into raw buffers or string vectors.
 //! * [`uuidv7`] — RFC 9562 UUIDv7 generation.
+//! * [`ksuid`] — Segment KSUID (160-bit, base62, second precision).
 //! * [`base58`], [`base64url`], [`sortable`] — alternative encodings.
 //! * [`convert`] — ULID <-> UUID string conversions.
 
@@ -24,6 +25,7 @@ pub mod convert;
 pub mod crockford;
 pub mod error;
 pub mod id128;
+pub mod ksuid;
 pub mod monotonic;
 pub mod rng;
 pub mod sortable;

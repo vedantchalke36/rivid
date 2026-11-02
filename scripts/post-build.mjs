@@ -66,6 +66,7 @@ let declFixed = 0
       'export declare function sort(ids: ReadonlyArray<string>): Array<string>',
     ],
     [/export declare function generateMany\(([^)]*)\): object/, 'export declare function generateMany($1): string[]'],
+    [/export declare function generateKsuidMany\(([^)]*)\): object/, 'export declare function generateKsuidMany($1): string[]'],
     [/export declare function decodeMany\(([^)]*)\): Uint8Array/, 'export declare function decodeMany($1): Uint8Array'],
     [/nextMany\(([^)]*)\): object/, 'nextMany($1): string[]'],
     [/monotonicMany\(([^)]*)\): object/, 'monotonicMany($1): string[]'],

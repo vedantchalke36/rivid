@@ -1,7 +1,7 @@
 {
   "name": "@rivid/core",
   "version": "1.1.0",
-  "description": "High-performance, spec-compatible ULID generation for Node.js and Bun, powered by a Rust core via NAPI-RS. Includes monotonic ULIDs, bulk generation, binary APIs, alternative encodings and UUIDv7.",
+  "description": "High-performance identifier generation for Node.js and Bun, powered by a Rust core via NAPI-RS. ULID, monotonic ULID, UUIDv7, KSUID, bulk generation, binary APIs and alternative encodings.",
   "author": {
     "name": "Vedant Chalke"
   },
@@ -24,6 +24,7 @@
     "ulid",
     "uuid",
     "uuidv7",
+    "ksuid",
     "id",
     "identifier",
     "sortable",
@@ -95,6 +96,7 @@
     "fmt": "cargo fmt && cargo clippy --workspace --all-targets -- -D warnings",
     "bench": "tsx benchmarks/run.mts",
     "bench:quick": "tsx benchmarks/run.mts --quick",
+    "bench:ksuid": "tsx benchmarks/run.mts --suite=ksuid",
     "bench:startup": "node benchmarks/startup.mjs",
     "bench:rust": "cargo run --release -p rivid-core --example bench_direct",
     "bench:xlang": "./bench.sh",
@@ -106,6 +108,7 @@
     "@types/node": "26.4.0",
     "@types/pg": "^8.15.4",
     "drizzle-orm": "0.45.2",
+    "ksuid": "^3.0.0",
     "pg": "^8.16.0",
     "tsx": "^4.23.12",
     "typescript": "7.0.2",

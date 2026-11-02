@@ -96,6 +96,40 @@ fn explicit_ts(timestamp_ms: Option<f64>) -> Result<Option<u64>> {
     }
 }
 
+/// Formats a KSUID range-check failure for a JS-side millisecond timestamp.
+fn ksuid_ts_out_of_range(v: f64) -> Error {
+    Error::new(
+        Status::InvalidArg,
+        format!(
+            "timestamp {v} out of range for KSUID: must be an integer between {} and {} milliseconds",
+            core::ksuid::EPOCH_MS,
+            core::ksuid::TIME_MAX_MS
+        ),
+    )
+}
+
+/// Validates an explicitly provided KSUID timestamp in Unix milliseconds.
+fn explicit_ksuid_ts(timestamp_ms: Option<f64>) -> Result<Option<u64>> {
+    match timestamp_ms {
+        None => Ok(None),
+        Some(v) => {
+            if !v.is_finite()
+                || v.fract() != 0.0
+                || !((core::ksuid::EPOCH_MS as f64)..=(core::ksuid::TIME_MAX_MS as f64))
+                    .contains(&v)
+            {
+                return Err(ksuid_ts_out_of_range(v));
+            }
+            Ok(Some(v as u64))
+        }
+    }
+}
+
+#[inline]
+fn encode_ksuid_stack(bytes: &[u8; core::ksuid::BYTE_LEN]) -> [u8; core::ksuid::STRING_LEN] {
+    core::ksuid::encode_value(bytes)
+}
+
 /// Locks a mutex, recovering from poisoning by taking the inner guard.
 ///
 /// A panic in another thread leaves the data itself consistent for these
@@ -487,6 +521,132 @@ pub fn uuidv7_time(bytes: Uint8Array) -> Result<f64> {
         .try_into()
         .map_err(|_| Error::new(Status::InvalidArg, "expected exactly 16 bytes"))?;
     Ok(core::uuidv7::timestamp_ms(&arr) as f64)
+}
+
+// ---------------------------------------------------------------------------
+// KSUID (secondary 160-bit feature)
+// ---------------------------------------------------------------------------
+
+/// Generates a canonical 27-character KSUID string using the current
+/// wall-clock second and 128 bits of secure randomness.
+///
+/// An optional explicit Unix timestamp in **milliseconds** may be passed.
+/// KSUID stores whole seconds, so the value is floored to the encoded second.
+#[napi(ts_return_type = "string")]
+pub fn ksuid(timestamp_ms: Option<f64>) -> Result<Latin1<27>> {
+    let value = match explicit_ksuid_ts(timestamp_ms)? {
+        None => core::ksuid::Ksuid::generate(),
+        Some(ms) => core::ksuid::Ksuid::generate_at_unix_ms(ms).napi()?,
+    };
+    Ok(Latin1(encode_ksuid_stack(value.as_bytes())))
+}
+
+/// Generates one raw 20-byte KSUID (4-byte timestamp + 16-byte payload).
+#[napi]
+pub fn ksuid_bytes() -> Uint8Array {
+    let b = core::ksuid::generate_bytes20();
+    Uint8Array::from(b.as_slice())
+}
+
+/// Generates `count` KSUID strings in one call, sharing one captured second.
+///
+/// (Raw array; declaration patched to `string[]` by post-build.)
+#[napi]
+pub fn generate_ksuid_many(env: Env, count: i64) -> Result<Object<'static>> {
+    if !(0..=MAX_BATCH).contains(&count) {
+        return Err(invalid_count(count));
+    }
+    let strings = core::ksuid::generate_strings(count as usize);
+    let arr = Array::from_ref_vec_string(&env, &strings)?;
+    Ok(unsafe { std::mem::transmute::<Object<'_>, Object<'static>>(arr.coerce_to_object()?) })
+}
+
+/// Generates `count` raw 20-byte KSUIDs packed into one contiguous
+/// Uint8Array (`count * 20` bytes).
+#[napi]
+pub fn generate_ksuid_bytes(count: i64) -> Result<Uint8Array> {
+    if !(0..=MAX_BATCH).contains(&count) {
+        return Err(invalid_count(count));
+    }
+    let vec = core::ksuid::generate_bytes(count as usize);
+    Ok(Uint8Array::from(vec.as_slice()))
+}
+
+/// Fills a caller-provided Uint8Array with raw KSUIDs (20 bytes each).
+///
+/// The array length must be a multiple of 20. Returns the number of IDs
+/// written (`length / 20`).
+#[napi]
+pub fn generate_ksuid_into(mut buffer: Uint8Array) -> Result<u32> {
+    let slice: &mut [u8] = unsafe { buffer.as_mut() };
+    let n = core::ksuid::fill_secure(slice).napi()?;
+    Ok(n as u32)
+}
+
+/// Validates KSUID format: exactly 27 base62 characters and a value that
+/// fits in 160 bits.
+#[napi]
+pub fn is_valid_ksuid(id: String) -> bool {
+    core::ksuid::is_valid(id.as_bytes())
+}
+
+/// Extracts the Unix timestamp (milliseconds) from a KSUID string.
+#[napi]
+pub fn decode_ksuid_time(id: String) -> Result<f64> {
+    Ok(core::ksuid::decode_time_ms(&id).napi()? as f64)
+}
+
+/// Extracts the Unix timestamp (milliseconds) from raw 20-byte KSUID bytes.
+#[napi]
+pub fn ksuid_time(bytes: Uint8Array) -> Result<f64> {
+    Ok(core::ksuid::time_ms(bytes.as_ref()).napi()? as f64)
+}
+
+/// Decodes a canonical 27-character KSUID into its 20-byte representation.
+#[napi]
+pub fn decode_ksuid(id: String) -> Result<Uint8Array> {
+    let bytes = core::ksuid::decode(&id).napi()?;
+    Ok(Uint8Array::from(bytes.as_slice()))
+}
+
+/// Encodes exactly 20 bytes as a canonical 27-character KSUID string.
+#[napi(ts_return_type = "string")]
+pub fn encode_ksuid(bytes: Uint8Array) -> Result<Latin1<27>> {
+    let slice: &[u8] = bytes.as_ref();
+    if slice.len() != core::ksuid::BYTE_LEN {
+        return Err(to_napi(core::Error::InvalidLength {
+            expected: core::ksuid::BYTE_LEN,
+            got: slice.len(),
+        }));
+    }
+    let arr: [u8; core::ksuid::BYTE_LEN] = slice.try_into().unwrap();
+    Ok(Latin1(encode_ksuid_stack(&arr)))
+}
+
+/// Compares two KSUIDs by their full 160-bit value.
+/// Returns `-1`, `0` or `1`.
+#[napi]
+pub fn compare_ksuid(a: String, b: String) -> Result<i32> {
+    Ok(match core::ksuid::compare(&a, &b).napi()? {
+        Ordering::Less => -1,
+        Ordering::Equal => 0,
+        Ordering::Greater => 1,
+    })
+}
+
+/// Returns a new array with KSUIDs sorted ascending by value.
+#[napi]
+pub fn sort_ksuid(ids: Vec<String>) -> Result<Vec<String>> {
+    let mut decoded: Vec<(core::ksuid::Ksuid, String)> = ids
+        .into_iter()
+        .map(|s| {
+            core::ksuid::Ksuid::parse(&s)
+                .map(|v| (v, s))
+                .map_err(to_napi)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    decoded.sort_by_key(|(v, _)| *v);
+    Ok(decoded.into_iter().map(|(_, s)| s).collect())
 }
 
 // ---------------------------------------------------------------------------

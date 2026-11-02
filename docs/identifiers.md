@@ -91,6 +91,36 @@
 
 **Why CORE**: Critical for event ordering, database primary keys, and event sourcing where insertion order must be preserved within a process. Without monotonicity, same-millisecond IDs may sort incorrectly.
 
+### KSUID (Segment) — `ksuid()`
+
+| Property | Value |
+|----------|-------|
+| Bit width | 160 |
+| Textual representation | 27-char Base62 (`0-9A-Za-z`) |
+| Binary representation | 20 bytes, big-endian |
+| Sortable | Yes (lexicographic == chronological) |
+| Monotonic | No (128-bit random payload per ID) |
+| Timestamp | 32-bit seconds since 2014-05-13T16:53:20Z |
+| Sub-second precision | No (second only) |
+| Entropy | 128 bits |
+| Collision resistance | 2^128 per second |
+| Distributed generation | Yes (no coordination required) |
+| Storage (PostgreSQL) | `BYTEA` (20 bytes) or `CHAR(27)` |
+| Indexing | B-tree sortable; byte order equals time order |
+| URL/API suitability | Excellent — base62, no hyphens |
+| Human usability | Moderate — mixed-case base62 |
+| Generation performance | 335 ns/op (Node NAPI); `ksuid` npm reference ~15,300 ns/op |
+| Decode performance | 1.9 µs/op (Node NAPI, typed-array allocation included) |
+
+**Why CORE**: Fully compatible with Segment's KSUID format and the reference
+`ksuid` npm package. The 128-bit payload gives more per-ID entropy than ULID,
+and the 27-char base62 form is compact and URL-safe.
+
+**Trade-offs vs ULID/UUIDv7**: Second-level timestamp precision, a custom
+epoch, and 20 bytes instead of 16. It has no native PostgreSQL type. Use KSUID
+when you need Segment interoperability or 128-bit random payloads; prefer
+ULID/UUIDv7 for millisecond precision and 16-byte storage.
+
 ### Random 128-bit — `ulidBytes()` / `uuidv7Bytes()` (binary APIs)
 
 | Property | Value |
@@ -156,19 +186,6 @@
 **Assessment**: 64-bit is attractive for storage efficiency (fits in `BIGINT`), but requires worker/node ID coordination — a significant operational burden. UUIDv7 at 128 bits provides equivalent time-sortability without coordination. The 64-bit advantage is mainly for MySQL `BIGINT` primary keys; PostgreSQL handles `uuid` efficiently.
 
 **When Snowflake makes sense**: When you need `BIGINT` primary keys for MySQL compatibility and have existing worker-ID infrastructure (ZooKeeper, etcd). Not recommended for new PostgreSQL-based systems.
-
-### KSUID (Segment)
-
-| Property | Value |
-|----------|-------|
-| Bit width | 160 |
-| Textual representation | 27-char Base62 |
-| Timestamp | 32-bit second-precision |
-| Epoch | Custom (2014-05-13) |
-
-**Status**: Investigated but not implemented.
-
-**Assessment**: 160 bits (vs 128 for ULID/UUID). Second-precision (vs millisecond for ULID/UUID). Base62 is URL-safe but not standard. ULID provides better precision and smaller representation. KSUID's main advantage was arriving before ULID/UUIDv7; that advantage no longer exists.
 
 ### ObjectId (MongoDB)
 

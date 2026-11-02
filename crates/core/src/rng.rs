@@ -33,14 +33,12 @@ thread_local! {
     static POOL: RefCell<EntropyPool> = const { RefCell::new(EntropyPool { idx: 32, words: [0; 32] }) };
 }
 
-/// Draws 80 bits of randomness (the ULID random component).
+/// Draws the next pooled 128-bit random word.
 ///
-/// Served from a thread-local pool refilled by the OS-seeded ChaCha12
-/// thread-local generator every 32 draws — statistically identical to
-/// drawing fresh, but with the generator's block overhead amortised.
+/// The pool is refilled by the OS-seeded ChaCha12 thread-local generator
+/// every 32 draws, amortising the generator's block overhead.
 #[inline]
-#[must_use]
-pub fn random_80() -> u128 {
+fn next_pooled() -> u128 {
     POOL.with_borrow_mut(|p| {
         if p.idx == p.words.len() {
             // SAFETY: `[u128; 32]` is trivially transmutable to its 512-byte
@@ -52,8 +50,22 @@ pub fn random_80() -> u128 {
         }
         let v = p.words[p.idx];
         p.idx += 1;
-        v & crate::id128::Id128::RANDOM_MASK
+        v
     })
+}
+
+/// Draws 80 bits of randomness (the ULID random component).
+#[inline]
+#[must_use]
+pub fn random_80() -> u128 {
+    next_pooled() & crate::id128::Id128::RANDOM_MASK
+}
+
+/// Draws 128 bits of randomness (the KSUID payload).
+#[inline]
+#[must_use]
+pub fn random_128() -> u128 {
+    next_pooled()
 }
 
 /// Fills `buf` entirely with secure random bytes using the thread-local
